@@ -3,6 +3,10 @@ a touch-sensitive .WAV player, capable of taking input from four capacitive
 sensors (implemented by Adafruit Gemma-M0 wearable microcontrollers) and
 playing up to four simulaneous .WAV tracks.
 
+For a detailed description and instructions, see:
+
+  https://docs.google.com/document/d/1PwvoPVsNonqkqNiFn8hyfcOJ5IofLOvvq3fhWHgsmE4/edit?usp=sharing
+
 A simple configuration tool is available; just open it (double-click) with
 your browser. It contains detailed instructions and a description of each
 feature.

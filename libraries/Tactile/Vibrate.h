@@ -96,13 +96,16 @@ class Vibrate
      28 | 29<<8,
      36 | 37<<8
     };
-  static int _convertChannelToPins(int channel);
-  static int _convertChannelToPin1(int channel);
-  static int _convertChannelToPin2(int channel);
-  static int _checkChannel(int channel);
+  int _convertChannelToPins(int channel);
+  int _convertChannelToPin1(int channel);
+  int _convertChannelToPin2(int channel);
+  int _checkChannel(int channel);
+  int _readln(File f, char *buf, int bufLen);
 
   void  _calculateLengthOfEnvelope(int channel);
   void _calculateMsecPerEnvelopePoint(int channel);
+
+  int _calculateActualVolume(int channel, int volume);
 
   /*----------------------------------------------------------------------
    * Each channel is assigned a "vibration envelope", either from the

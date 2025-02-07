@@ -28,13 +28,17 @@
 #define NUM_CHANNELS 4
 
 // Where does the input come from?
+
 enum InputSource { noInput, touchInput, audioInput };
 
 // Where does the output go?
 
 enum OutputDest { noOutput, audioOutput, vibrationOutput };
 
-// When the vibrator is on, what does it do?
-enum VibModes {noVibrate, VibrateMode, PulseMode};
+// What types of vibrators are supported?
+//  motor  -- takes a simple DC voltage
+//  linear -- uses AC signal at vibration frequency
+
+enum VibratorType { motorVibrator, linearVibrator };
 
 #endif

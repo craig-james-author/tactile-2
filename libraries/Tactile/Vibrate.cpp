@@ -2,26 +2,28 @@
 +======================================================================
 | Copyright (c) 2025, Craig A. James
 |
-| This file is part of of the "Vibrate" library.
+| This file is part of of the "Tactile" library.
 |
-| Vibrate is free software: you can redistribute it and/or modify it under
+| Tactile is free software: you can redistribute it and/or modify it under
 | the terms of the GNU Lesser General Public License (LGPL) as published by
 | the Free Software Foundation, either version 3 of the License, or (at
 | your option) any later version.
 |
-| Vibrate is distributed in the hope that it will be useful, but WITHOUT
+| Tactile is distributed in the hope that it will be useful, but WITHOUT
 | ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 | FITNESS FOR A PARTICULAR PURPOSE. See the LGPL for more details.
 |
-| You should have received a copy of the LGPL along with Vibrate. If not,
+| You should have received a copy of the LGPL along with Tactile. If not,
 | see <https://www.gnu.org/licenses/>.
 +======================================================================
 */
 
 #include "Arduino.h"
 #include "Vibrate.h"
+#include "VibrationEnvelopes.h"
 
 #define DEFAULT_PWM_FREQUENCY 100000
+#define DEFAULT_VIBRATOR_FREQUENCY 180
 
 /*----------------------------------------------------------------------
  * Constructor
@@ -42,8 +44,8 @@ Vibrate* Vibrate::setup(TeensyUtils *tc) {
   // the Vibrate object dynamically during the Arduino setup()
   // function, we avoid those problems.
 
-  Vibrate* vo = new Vibrate(tc);
-  vo->_tc->logAction2("Vibrate::setup: ", 0);
+  Vibrate* v = new Vibrate(tc);
+  tc->log2("Vibrate::setup()");
 
   for (int i = 0; i < NUM_CHANNELS; i++) {
     int pin1 = _convertChannelToPin1(i);
@@ -56,30 +58,26 @@ Vibrate* Vibrate::setup(TeensyUtils *tc) {
     tc->logAction2("Vibrate::setup(): Initialized pin2 to output: ", pin2);
   }
 
-  /* for testing: a trigger square wave for the oscilloscope */
+  /* For testing: a trigger square wave for the oscilloscope. The actual output
+   * pins are hard to trigger on since they're using 100KHz pulse-width modulation */
   pinMode(33, OUTPUT);
 
-  vo->setPwmFrequency(DEFAULT_PWM_FREQUENCY);
+  v->setPwmFrequency(DEFAULT_PWM_FREQUENCY);
   tc->logAction2("Vibrate::setup(): PWM frequency set: ", DEFAULT_PWM_FREQUENCY); 
 
-  for (int c = 0; c < NUM_CHANNELS; c++) {
-    vo->_vibMode[c]        = noVibrate;
-    vo->_period[c]         = 0;
-    vo->_startTime[c]      = 0;
-    vo->_currentState[c]   = false;
-    vo->_pulseWidth[c]     = 0;
-    vo->_pulsePeriod[c]    = 0;
-    vo->_pulseStartTime[c] = 0;
-    vo->_currentVolume[c]  = 0;
+  // Assign simple vibration to all channels
+  for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+    v->setVibrationEnvelope(ch, "square");
+    v->setVibrationFrequency(ch, DEFAULT_VIBRATOR_FREQUENCY);
   }
-  return vo;
+
+  return v;
 }
 
 /*----------------------------------------------------------------------
- * This is the main method that controls the actual hardware: vibration,
- * pulse, and volume control. It should be part of the main loop() program
- * that runs Arduino systems.
- ----------------------------------------------------------------------*/
+ * This is the main method that controls the actual hardware. It
+ * creates the vibrator output and applies the volume envelope to it.
+ *----------------------------------------------------------------------*/
 
 void Vibrate::doTimerTasks() {
 
@@ -87,49 +85,159 @@ void Vibrate::doTimerTasks() {
 
   for (int channel = 0; channel < NUM_CHANNELS; channel++) {
     
-    int timeInCycle = timeNow - _startTime[channel];
-    int period = _period[channel];
+    int timeInCycle = timeNow - _startTimeForVibration[channel];
+    int period = _vibrationPeriod[channel];
     
-    if (_vibMode[channel] == VibrateMode) {
-      int pin1 = _convertChannelToPin1(channel);
-      int pin2 = _convertChannelToPin2(channel);
-      if (timeInCycle <= period/2) {
-        if (_currentState[channel]) {
+    if (_isPlaying[channel]) {
+      if (timeInCycle <= period/2) {            // 1st half?
+        if (_currentState[channel]) {           // just started 1st half? Turn the juice on
           _currentState[channel] = false;
-          analogWrite(pin1, 127 + _currentVolume[channel]);
-          analogWrite(pin2, 128 - _currentVolume[channel]);
+          int pin1 = _convertChannelToPin1(channel);
+          int pin2 = _convertChannelToPin2(channel);
+          analogWrite(pin1, 127 + _actualVolume[channel]);
+          analogWrite(pin2, 128 - _actualVolume[channel]);
           if (channel == 0)
             analogWrite(33, HIGH);        // oscilloscope trigger
         }
-      } else if (timeInCycle <= period) {
-        if (!_currentState[channel]) {
+      } else if (timeInCycle <= period) {       // 2nd half?
+        if (!_currentState[channel]) {          // just started 2nd half? Turn the juice off
           _currentState[channel] = true;
-          analogWrite(pin1, 128 - _currentVolume[channel]);
-          analogWrite(pin2, 127 + _currentVolume[channel]);
+          int pin1 = _convertChannelToPin1(channel);
+          int pin2 = _convertChannelToPin2(channel);
+          analogWrite(pin1, 128 - _actualVolume[channel]);
+          analogWrite(pin2, 127 + _actualVolume[channel]);
           if (channel == 0)
             analogWrite(33, LOW);        // oscilloscope trigger
         }
-      } else {
-        _startTime[channel] = millis();
+      } else {        // Finished 2nd half of cycle.
+        _startTimeForVibration[channel] = timeNow; // restart cycle timer
       }
-    }
 
-    else if (_vibMode[channel] == PulseMode) {
-
+      // Now see if it's time to go to the next point in the volume envelope
+      int timeInPoint = timeNow - _startTimeForPoint[channel];
+      if (timeInPoint > _vibrationEnvelope[channel].msecPerPoint) {
+        _indexInEnvelope[channel] += 1;         // next point in volume envelope
+        if (_indexInEnvelope[channel] >= _vibrationEnvelope[channel].numberOfPoints) {
+          _indexInEnvelope[channel] = 0;
+        }
+        _actualVolume[channel] = _vibrationEnvelope[channel].volumes[_indexInEnvelope[channel]];
+        _startTimeForPoint[channel] = timeNow;
+      }
     }
   }
 }
 
 /*----------------------------------------------------------------------
- * Set parameters and activate actions.
+ * Set parameters and activate actions. Note that these start with
+ * the external channel numbers 1..N, not 0..N-1.
  ----------------------------------------------------------------------*/
 
-void Vibrate::setVolume(int channel, int percent) {
-  if (channel < 0 || channel >= NUM_CHANNELS)
+void Vibrate::start(int channel) {
+  channel -= 1;
+  channel = _checkChannel(channel);
+  if (_vibrationEnvelope[channel].numberOfPoints == -1) {
+    _isPlaying[channel] = false;
+    _tc->logAction("Error, can't start, no vibration envelope assigned, channel ", channel);
     return;
-  int volume = int(0.5 + (float)percent * 128.0 / 100.0);    // convert 0-100 to 0-128
-  _currentVolume[channel] = volume;
+  }
+  _isPlaying[channel] = true;
+  _actualVolume[channel] = _vibrationEnvelope[channel].volumes[0];
 
+  // setup for vibration timer
+  unsigned long timenow = millis();
+  _startTimeForVibration[channel] = timenow;
+  _currentState[channel] = false;
+
+  // set up for envelope timer
+  _startTimeForPoint[channel] = timenow;
+  _indexInEnvelope[channel] = 0;
+  _tc->logAction2("Vibrate::start: ", channel);
+}
+
+void Vibrate::stop(int channel) {
+  channel -= 1;
+  channel = _checkChannel(channel);
+  _isPlaying[channel] = false;
+  int pin1 = _convertChannelToPin1(channel);
+  int pin2 = _convertChannelToPin2(channel);
+  digitalWrite(pin1, LOW);
+  digitalWrite(pin2, LOW);
+  _tc->logAction2("Vibrate::stop: ", channel);
+}
+
+bool Vibrate::isPlaying(int channel) {
+  channel -= 1;
+  channel = _checkChannel(channel);
+  return _isPlaying[channel];
+}
+
+void Vibrate::setVibrationEnvelope(int channel, const char *name) {
+  channel -= 1;
+  channel = _checkChannel(channel);
+  for (int i = 0; ; i++) {
+    if (builtInEnvelopes[i].name[0] == 0) {     // end of list
+      _vibrationEnvelope[channel].name[0] = '\0';
+      _vibrationEnvelope[channel].numberOfPoints = 0;
+      _vibrationEnvelope[channel].msecPerPoint = 0;
+      _vibrationEnvelope[channel].msecTotal = 0;
+      _vibrationEnvelope[channel].volumes[0] = -1;
+      Serial.print("setVibrationEnvelope: name not found: "); Serial.println(name);
+      break;
+    } else if (0 == strcmp(builtInEnvelopes[i].name, name)) {
+      _vibrationEnvelope[channel] = builtInEnvelopes[i];
+      _calculateLengthOfEnvelope(channel);   // in case definition is wrong or not set
+      _calculateMsecPerEnvelopePoint(channel);
+      Serial.print("setVibrationChannel: found "); Serial.print(name); Serial.println(", i = " + i);
+      break;
+    }
+  }
+  Serial.print("setVibrationEnvelope(): channel "); Serial.println(channel);
+  Serial.print("     name "); Serial.println( _vibrationEnvelope[channel].name);
+  Serial.print("  nPoints "); Serial.println(_vibrationEnvelope[channel].numberOfPoints);
+  Serial.print("  msecPer "); Serial.println(_vibrationEnvelope[channel].msecPerPoint);
+  Serial.print("  msecTot "); Serial.println(_vibrationEnvelope[channel].msecTotal);
+  
+}
+
+void Vibrate::setVibrationEnvelopeFile(int channel, const char *name) {
+  channel -= 1;
+ channel = _checkChannel(channel);
+ // NOT YET IMPLEMENTED...
+}
+
+void Vibrate::overrideVibrationEnvelopeDuration(int channel, int msec) {
+  channel -= 1;
+  channel = _checkChannel(channel);
+  if (_vibrationEnvelope[channel].numberOfPoints == 0)
+    return;
+  if (msec < 1) msec = 1;
+  else if (msec > 100000) msec = 100000;
+  _vibrationEnvelope[channel].msecTotal = msec;
+  _calculateMsecPerEnvelopePoint(channel);
+}
+
+void Vibrate::overrideVibrationEnvelopeRepeats(int channel, bool repeats) {
+  channel -= 1;
+  channel = _checkChannel(channel);
+ _vibrationEnvelope[channel].repeats = repeats;
+}
+
+void Vibrate::setVibrationFrequency(int channel, int frequency) {
+  channel -= 1;
+  channel = _checkChannel(channel);
+  if (frequency < 20)
+    frequency = 20;
+  else if (frequency > 400)
+    frequency = 400;
+  _vibrationFrequency[channel] = frequency;
+  _vibrationPeriod[channel] = (int)(0.5 + 1000.0/frequency);     // convert frequency to msec
+}
+
+void Vibrate::setVolume(int channel, int percent) {
+  channel -= 1;
+  channel = _checkChannel(channel);
+  int volume = int(0.5 + (float)percent * 128.0 / 100.0);    // convert 0-100 to 0-128
+  _setVolume[channel] = volume;
   // debug log
   if (_tc->getLogLevel() >= 2) {
     Serial.print("Vibrate::setVolume(");
@@ -142,42 +250,9 @@ void Vibrate::setVolume(int channel, int percent) {
 }
 
 void Vibrate::setVolume(int percent) {
-  for (int c = 0; c < NUM_CHANNELS; c++) {
+  for (int c = 1; c <= NUM_CHANNELS; c++) {
     setVolume(c, percent);
   }
-}
-
-void Vibrate::vibrate(int channel, int frequency) {
-  if (channel < 0 || channel >= NUM_CHANNELS)
-    return;
-  _period[channel] = _convertFrequencyToMsec(frequency);
-  _startTime[channel] = millis();
-  _currentState[channel] = false;
-  _vibMode[channel] = VibrateMode;
-}
-
-void Vibrate::pulse(int channel, int frequency, int pulses, int period) {
-  if (channel < 0 || channel >= NUM_CHANNELS)
-    return;
-  vibrate(channel, frequency);      // start by setting vibrate parameters
-  _vibMode[channel] = PulseMode;    // but change mode to Pulse
-  _pulseWidth[channel] = pulses;
-  _pulsePeriod[channel] = period;
-
-}
-
-void Vibrate::stop(int channel) {
-  if (channel < 0 || channel >= NUM_CHANNELS)
-    return;
-  _vibMode[channel] = noVibrate;
-  int pin1 = _convertChannelToPin1(channel);
-  int pin2 = _convertChannelToPin2(channel);
-  digitalWrite(pin1, LOW);
-  digitalWrite(pin2, LOW);
-}
-
-bool Vibrate::isPlaying(int channel) {
-  return _vibMode[channel] != noVibrate;
 }
 
 void Vibrate::setPwmFrequency(int frequency) {
@@ -194,10 +269,16 @@ void Vibrate::setPwmFrequency(int frequency) {
     analogWriteFrequency(pin2, _pwmFrequency);
   }
 }
-    
+  
 /*----------------------------------------------------------------------
  * Internal methods.
  ----------------------------------------------------------------------*/
+
+int Vibrate::_checkChannel(int channel) {
+  if (channel < 0) return 0;
+  if (channel >= NUM_CHANNELS) return NUM_CHANNELS - 1;
+  return channel;
+}
 
 int Vibrate::_convertChannelToPins(int channel) {
   if (channel < 0)
@@ -217,7 +298,18 @@ int Vibrate::_convertChannelToPin2(int channel) {
   return (pin & 0xFF00)>>8;
 }
 
-int Vibrate::_convertFrequencyToMsec(int f) {
-  return (int)(0.5 + 1000.0/(float)f);
+void Vibrate::_calculateLengthOfEnvelope(int channel) {
+  int length = 0;
+  int *v = _vibrationEnvelope[channel].volumes;
+  for (length = 0; ; length++) {
+    if (v[length] < 0) {
+      _vibrationEnvelope[channel].numberOfPoints = length;
+      break;
+    }
+  }
 }
 
+void Vibrate::_calculateMsecPerEnvelopePoint(int channel) {
+  VibrationEnvelope *ve = &_vibrationEnvelope[channel];
+  ve->msecPerPoint = (int) (0.5 + (float)ve->msecTotal / (float)ve->numberOfPoints);
+}

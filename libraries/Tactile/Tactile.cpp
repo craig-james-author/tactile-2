@@ -173,6 +173,27 @@ void Tactile::setAveragingStrength(int samples) {
   _ts->setAveragingStrength(samples);
 }
 
+/*-------------------- vibration controls --------------------*/
+
+void Tactile::setVibrationEnvelope(int channel, const char *name) {
+  _v->setVibrationEnvelope(channel, name);
+}
+void Tactile::setVibrationEnvelopeFile(int channel, const char *fileName) {
+  _v->setVibrationEnvelopeFile(channel, fileName);
+}
+void Tactile::overrideVibrationEnvelopeDuration(int channel, int msec) {
+  _v->overrideVibrationEnvelopeDuration(channel, msec);
+}
+void Tactile::overrideVibrationEnvelopeRepeats(int channel, bool repeat) {
+  _v->overrideVibrationEnvelopeRepeats(channel, repeat);
+}
+void Tactile::setVibrationFrequency(int channel, int frequency) {
+  _v->setVibrationFrequency(channel, frequency);
+}
+
+
+/*-------------------- main functions --------------------*/
+
 Tactile* Tactile::setup() {
 
   Tactile *t = new(Tactile);
@@ -202,6 +223,10 @@ Tactile* Tactile::setup() {
   
   return t;
 }
+
+/*----------------------------------------------------------------------
+ * TOUCH-MODE LOOP
+ ----------------------------------------------------------------------*/
     
 void Tactile::_touchLoop() {
   int sensorStatus[NUM_CHANNELS];
@@ -258,7 +283,7 @@ void Tactile::_touchLoop() {
 
         // Start vibration
         if (_useVibrationOutput[channel]) {
-          _v->vibrate(channel, 100 /* Hz */);
+          _v->start(channel);
           _tu->logAction("start vibrator ", channel+1);
         }
       }
@@ -344,7 +369,7 @@ void Tactile::_touchLoop() {
           _trackCurrentlyPlaying = channel;
         }
         if (_useVibrationOutput[channel]) {
-          _v->vibrate(channel, 100 /* Hz */);
+          _v->start(channel);
           _tu->logAction("start vibrator ", channel+1);
         }
         break;
@@ -353,6 +378,10 @@ void Tactile::_touchLoop() {
   }
 }
     
+/*----------------------------------------------------------------------
+* PROXIMITY LOOP: When touch proximity controls the volume.
+----------------------------------------------------------------------*/
+
 void Tactile::_proximityLoop() {
   float sensorValues[NUM_CHANNELS];
   float maxSensorValue = 0.0;
@@ -420,7 +449,7 @@ void Tactile::_proximityLoop() {
         if (sensorValue > _touchThreshold[channel]) {
           _v->setVolume(channel, sensorValue);
           if (!_v->isPlaying(channel))
-            _v->vibrate(channel, 100 /* Hz */);
+            _v->start(channel);
         }
         if (sensorValue < _releaseThreshold[channel]) {
           _v->setVolume(channel, 0);

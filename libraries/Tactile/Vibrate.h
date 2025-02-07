@@ -22,6 +22,20 @@
 #define Vibrate_h 1
 
 #include "TeensyUtils.h"
+#include "AudioFileManager.h"
+
+// A "vibration envelope" is a series of volume settings applied to a
+// vibrator output over a specified period of time.
+
+struct VibrationEnvelope {
+  char name[20];
+  int numberOfPoints;   // length of "volumes" array (cached)
+  int msecPerPoint;     // msec per item in "volumes" array (cached)
+  int msecTotal;        // time from start to finish
+  boolean repeats;      // loops? or once-and-stop?
+  int volumes[200];     // a list of volume values applied every msecPerPoint
+};
+
 
 // This module controls the vibrators: mode (VIBRATE, PULSE), volume,
 // and timing.
@@ -30,18 +44,28 @@ class Vibrate
 {
  public:
 
-
   // Constructors
   Vibrate(TeensyUtils* tc);
   static Vibrate* setup(TeensyUtils* tc);
 
   // channels are 0..N-1
-  void vibrate   (int channel, int frequency);
-  void pulse     (int channel, int frequency, int pulses, int period);
+  void start     (int channel);
   void stop      (int channel);
   bool isPlaying (int channel);
+
+  // When proximity isn't used...
   void setVolume (int channel, int percent);
   void setVolume (int percent);
+
+  // "Volume" controls volume, or controls speed (period)?
+  void useVolumeAsSpeed(bool on);
+
+  // built-in patterns, or pattern defined on the SD card
+  void setVibrationEnvelope(int channel, const char *name);
+  void setVibrationEnvelopeFile(int channel, const char *fileName);
+  void overrideVibrationEnvelopeDuration(int channel, int msec);
+  void overrideVibrationEnvelopeRepeats(int channel, bool repeat);
+  void setVibrationFrequency(int channel, int frequency);
 
   void doTimerTasks();
   
@@ -72,37 +96,63 @@ class Vibrate
      28 | 29<<8,
      36 | 37<<8
     };
-
   static int _convertChannelToPins(int channel);
   static int _convertChannelToPin1(int channel);
   static int _convertChannelToPin2(int channel);
+  static int _checkChannel(int channel);
 
-  // Convert frequency to period in msec
-  int _convertFrequencyToMsec(int frequency);
+  void  _calculateLengthOfEnvelope(int channel);
+  void _calculateMsecPerEnvelopePoint(int channel);
 
-  // What is this channel doing?
-  VibModes _vibMode[NUM_CHANNELS] = {noVibrate, noVibrate, noVibrate, noVibrate};
-  
-  // Vibration data. A vibrater switches its pair of outputs' polarity
-  // every N milliseconds.
-  int           _period[NUM_CHANNELS];
-  unsigned long _startTime[NUM_CHANNELS];       // when this cycle started
-  boolean       _currentState[NUM_CHANNELS];    // true = high, false = low
+  /*----------------------------------------------------------------------
+   * Each channel is assigned a "vibration envelope", either from the
+   * built-in list or from a file on the SD card. An envelope specifies a
+   * changing volume over a fixed period of time.
+   *
+   * There are four time/frequency parameters that can be easily confused.
+   *
+   * Vibration frequency
+   *   This is the frequency of the vibrator, typically 40-250 Hz.
+   *
+   * Envelope length
+   *   Each volume-profile "envelope" has a length, the time between
+   *   repeats of the envelope. For example, a single cycle "sawtooth"
+   *   pattern might be one second, meaning the volume would rise to
+   *   maximum for 1/2 second, then fall to zero for another 1/2 second,
+   *   then repeat.
+   *
+   * msecPerPoint
+   *   Envelopes have varying lengths (number of volume points). For example,
+   *   a smoothly-descending volume might have 40 values, whereas
+   *   a on/of (square wave) might just have two values. Imagine the
+   *   envelope length (above) is one second. In that case, the two-point
+   *   square wave gets 500 msec per point, whereas the 40-point smooth
+   *   descending volume would get 25 msec per point.
+   *   
+   * PWM frequency
+   *   The pulse-width modulation frequency is more-or-less irrelevant to
+   *   everything else. It's typically in the neighborhood of 100KHz.
+   *   Ignore it; it's rarely changed and irrelevant to how this module
+   *   works.
+   *
+   * The following internal variables maintain these values and keep track
+   * of the state of the vibrator output.
+   ----------------------------------------------------------------------*/
 
-  // Pulse data. Pulsing is controlled by three parameters:
-  //    frequency - the frequence of the pulse while it's on
-  //    width     - how wide the pulse (on period) is
-  //    period    - how often to send a pulse
-  // A pulse is the same as vibration, but for a very brief time,
-  // so pulses use the vibration parameters, above, plus these:
+  VibrationEnvelope _vibrationEnvelope[NUM_CHANNELS];
+  int  _setVolume[NUM_CHANNELS]                     = {0, 0, 0, 0};
+  int  _actualVolume[NUM_CHANNELS]                  = {0, 0, 0, 0};
+  bool _isPlaying[NUM_CHANNELS]                     = {false, false, false, false};
 
-  int _pulseWidth[NUM_CHANNELS];
-  int _pulsePeriod[NUM_CHANNELS];
-  int _pulseStartTime[NUM_CHANNELS];
+  // managing volume envelope
+  int _indexInEnvelope[NUM_CHANNELS]                = {0, 0, 0, 0};
+  unsigned long _startTimeForPoint[NUM_CHANNELS]    = {0, 0, 0, 0};
 
-  // Volume (PWM, Pulse-width modulation) data.
-  // 255 == full volume, 0 == off
-  int _currentVolume[NUM_CHANNELS];
+  // managing vibration frequency
+  bool _currentState[NUM_CHANNELS]                  = {false, false, false, false};
+  int  _vibrationFrequency[NUM_CHANNELS]            = {0, 0, 0, 0};
+  int  _vibrationPeriod[NUM_CHANNELS]               = {0, 0, 0, 0};     // period = 1/frequency
+  unsigned long _startTimeForVibration[NUM_CHANNELS]= {0, 0, 0, 0};
 
   int _pwmFrequency;
   

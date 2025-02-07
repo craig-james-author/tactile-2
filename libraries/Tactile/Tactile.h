@@ -67,6 +67,13 @@ class Tactile
   void setPlayRandomTrackMode(bool on);        // true == random selection from sensor's directory
   const char *getTrackName(int trackNum);
   
+  /*---------- These are forwarded to the Vibrator module ----------*/
+  void setVibrationEnvelope(int channel, const char *name);
+  void setVibrationEnvelopeFile(int channel, const char *fileName);
+  void overrideVibrationEnvelopeDuration(int channel, int msec);
+  void overrideVibrationEnvelopeRepeats(int channel, bool repeat);
+  void setVibrationFrequency(int channel, int frequency);
+
  private:
   TeensyUtils      *_tu;
   Sensors          *_ts;

@@ -77,7 +77,6 @@ const char *Tactile::getTrackName(int trackNum) {
 
 void Tactile::setVolume(int percent) {
   _ta->setVolume(percent);
-  _v->setVolume(percent);
 }
 
 void Tactile::setLoopMode(boolean on) {
@@ -88,7 +87,7 @@ void Tactile::setPlayRandomTrackMode(boolean on) {
   _ta->setPlayRandomTrackMode(on);
 }
 
-void Tactile::setProximityAsVolumeMode(boolean on) {
+void Tactile::useProximityAsVolume(boolean on) {
   _useProximityAsVolume = on;
   if (on) {
     _ta->setFadeInTime(0);        // Fade in/out isn't compatible with proximity-as-volume
@@ -175,6 +174,9 @@ void Tactile::setAveragingStrength(int samples) {
 
 /*-------------------- vibration controls --------------------*/
 
+void Tactile::setVibrationIntensity(int channel, int intensityPercent) {
+  _v->setIntensity(intensityPercent);
+}
 void Tactile::setVibrationEnvelope(int channel, const char *name) {
   _v->setVibrationEnvelope(channel, name);
 }
@@ -190,7 +192,47 @@ void Tactile::overrideVibrationEnvelopeRepeats(int channel, bool repeat) {
 void Tactile::setVibrationFrequency(int channel, int frequency) {
   _v->setVibrationFrequency(channel, frequency);
 }
+void Tactile::useProximityAsIntensity(int channel, bool on) {
+  if (channel < 1 || channel > NUM_CHANNELS)
+    return;
+  channel -= 1; // 1..N external, 0..N-1 internal
+  _proximityControlsIntensity[channel] = on;
+  if (on) {
+    _proximityControlsSpeed[channel] = false;
+    _speedMultiplierPercent[channel] = 100;
+  }
+}
 
+// Vibration speed factor to speedup. sf is the amount to speed up, e.g. 50
+// means that at zero proximity (full contact), speed is 150% of base value.
+//
+// sf%     speedup
+//   0 --> 1.0 - 1.0
+//  50 --> 1.0 - 1.5
+// 100 --> 1.0 - 2.0
+// 500 --> 1.0 - 6.0
+// -50 --> 1.0 - 0.5 (gets slower)  
+//-100 --> 1.0 - 0.0 (stops)
+//
+// So speed factor is: 1 + (speedMultiplierPct/100 * proxPct)
+
+void Tactile::useProximityAsSpeed(int channel, bool on, int multiplierPercent) {
+  if (channel < 1 || channel > NUM_CHANNELS)
+    return;
+  channel -= 1; // 1..N external, 0..N-1 internal
+  if (multiplierPercent > 1000)
+    multiplierPercent = 100;
+  else if (multiplierPercent < -100)
+    multiplierPercent = -100;
+  if (on) {
+    _proximityControlsIntensity[channel] = false;
+    _proximityControlsSpeed[channel] = true;
+    _speedMultiplierPercent[channel] = multiplierPercent;
+  } else {
+    _speedMultiplierPercent[channel] = 100;
+    _proximityControlsSpeed[channel] = false;
+  }
+}
 
 /*-------------------- main functions --------------------*/
 
@@ -198,7 +240,7 @@ Tactile* Tactile::setup() {
 
   Tactile *t = new(Tactile);
 
-  for (int c = 0; c < NUM_CHANNELS; c++) {
+  for (int c = 1; c <= NUM_CHANNELS; c++) {
     t->setInputSource(c, touchInput);
     t->setOutputDestination(c, audioOutput, vibrationOutput);
   }
@@ -210,13 +252,21 @@ Tactile* Tactile::setup() {
   t->_ta = AudioPlayer::setup(t->_tu);
   t->_v  = Vibrate::setup(t->_tu);
   
+  // Audio initialization
+  t->setTouchReleaseThresholds(95, 65);
   t->setMultiTrackMode(false);
   t->setContinueTrackMode(false);
   t->setInactivityTimeout(0);
   t->setPlayRandomTrackMode(false);
   t->setProximityAsVolumeMode(false);
-  t->setTouchReleaseThresholds(95, 65);
 
+  // Vibration initialization
+  for (int c = 1; c <= NUM_CHANNELS; c++) {
+    t->useProximityAsSpeed(c, false, 100);
+    t->useProximityAsIntensity(c, false);
+  }
+
+  // Bookkeeping
   t->_ledCycle = 0;
   t->_trackCurrentlyPlaying = -1;
   t->_lastActionTime = millis();
@@ -394,7 +444,6 @@ void Tactile::_proximityLoop() {
       maxSensorNumber = channel;
     }
   }
-  _tu->logAction2("Tactile::_touchLoop(): maxSensorNumber = ", maxSensorNumber);
 
   // Set the LED brightness proportional to whichever sensor has the highest value
   int led_percent = int(maxSensorValue);
@@ -444,15 +493,19 @@ void Tactile::_proximityLoop() {
         }
       }
 
-      /* Vibration: start/stop and control volume */
+      // Vibration: start/stop and control intensity OR control speed.
       if (_useVibrationOutput[channel]) {
         if (sensorValue > _touchThreshold[channel]) {
-          _v->setVolume(channel, sensorValue);
+          if (_proximityControlsSpeed[channel]) {
+            int multiplier = (int)(0.499 + (float)_speedMultiplierPercent[channel]/100.0 * (float)sensorValue);
+            _v->setSpeedMultiplier(channel, multiplier);
+          } else if (_proximityControlsIntensity[channel]) {
+            _v->setIntensity(channel, sensorValue);
+          }
           if (!_v->isPlaying(channel))
             _v->start(channel);
         }
         if (sensorValue < _releaseThreshold[channel]) {
-          _v->setVolume(channel, 0);
           if (_v->isPlaying(channel)) {
             _v->stop(channel);
             _tu->logAction("stop vibrator ", channel+1);

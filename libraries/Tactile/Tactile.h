@@ -59,17 +59,23 @@ class Tactile
 
   /*---------- These are forwarded to the AudioPlayer module ----------*/
   void setVolume(int percent);
-  void setProximityAsVolumeMode(bool on);      // Proximity controls volume, or fixed volume
+  void useProximityAsVolume(bool on);          // Proximity controls volume, or fixed volume
   void setProximityMultiplier(int sensorNumber, float m);  // 1.0 is no amplification, more increases sensitivity
   void setFadeInTime(int milliseconds);
   void setFadeOutTime(int milliseconds);
   void setAveragingStrength(int samples);      // more smooths signal, default is 200
   void setPlayRandomTrackMode(bool on);        // true == random selection from sensor's directory
   const char *getTrackName(int trackNum);
+
+  // renamed -- use #define so that Tactile v1 sketches will work
+#define setProximityAsVolumeMode useProximityAsVolume
   
   /*---------- These are forwarded to the Vibrator module ----------*/
+  void setVibrationIntensity(int channel, int intensity);
   void setVibrationEnvelope(int channel, const char *name);
   void setVibrationEnvelopeFile(int channel, const char *fileName);
+  void useProximityAsIntensity(int channel, bool on);
+  void useProximityAsSpeed(int channel, bool on, int multiplierPercent);
   void overrideVibrationEnvelopeDuration(int channel, int msec);
   void overrideVibrationEnvelopeRepeats(int channel, bool repeat);
   void setVibrationFrequency(int channel, int frequency);
@@ -93,6 +99,9 @@ class Tactile
   uint32_t _restartTimeout;
   bool     _useProximityAsVolume;
   int      _trackCurrentlyPlaying;
+  bool     _proximityControlsIntensity[NUM_CHANNELS];
+  bool     _proximityControlsSpeed[NUM_CHANNELS];
+  int      _speedMultiplierPercent[NUM_CHANNELS];
   uint32_t _lastActionTime;
   int      _ledCycle;
   

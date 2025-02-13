@@ -24,20 +24,20 @@
 #include "TeensyUtils.h"
 #include "AudioFileManager.h"
 
-// A "vibration envelope" is a series of volume settings applied to a
+// A "vibration envelope" is a series of intensity settings applied to a
 // vibrator output over a specified period of time.
 
 struct VibrationEnvelope {
   char name[20];
-  int numberOfPoints;   // length of "volumes" array (cached)
-  int msecPerPoint;     // msec per item in "volumes" array (cached)
+  int numberOfPoints;   // length of "intensities" array (cached)
+  int msecPerPoint;     // msec per item in "intensities" array (cached)
   int msecTotal;        // time from start to finish
   boolean repeats;      // loops? or once-and-stop?
-  int volumes[200];     // a list of volume values applied every msecPerPoint
+  int intensities[200]; // a list of intensity values applied every msecPerPoint
 };
 
 
-// This module controls the vibrators: mode (VIBRATE, PULSE), volume,
+// This module controls the vibrators: mode (VIBRATE, PULSE), intensity,
 // and timing.
 
 class Vibrate
@@ -53,12 +53,12 @@ class Vibrate
   void stop      (int channel);
   bool isPlaying (int channel);
 
-  // When proximity isn't used...
-  void setVolume (int channel, int percent);
-  void setVolume (int percent);
+  // Amplitude of vibrations
+  void setIntensity (int channel, int percent);
+  void setIntensity (int percent);
 
-  // "Volume" controls volume, or controls speed (period)?
-  void useVolumeAsSpeed(bool on);
+  // Shortens the period of the amplitude envelope
+  void setSpeedMultiplier(int channel, int multiplierPercent);
 
   // built-in patterns, or pattern defined on the SD card
   void setVibrationEnvelope(int channel, const char *name);
@@ -66,7 +66,6 @@ class Vibrate
   void overrideVibrationEnvelopeDuration(int channel, int msec);
   void overrideVibrationEnvelopeRepeats(int channel, bool repeat);
   void setVibrationFrequency(int channel, int frequency);
-
   void doTimerTasks();
   
   // Normally leave this at default.
@@ -102,15 +101,16 @@ class Vibrate
   int _checkChannel(int channel);
   int _readln(File f, char *buf, int bufLen);
 
-  void  _calculateLengthOfEnvelope(int channel);
+  void _calculateLengthOfEnvelope(int channel);
   void _calculateMsecPerEnvelopePoint(int channel);
 
-  int _calculateActualVolume(int channel, int volume);
+  int _calculateActualIntensity(int channel, int intensity);
+  int _calculateActualPeriod(int channel, int period);
 
   /*----------------------------------------------------------------------
    * Each channel is assigned a "vibration envelope", either from the
    * built-in list or from a file on the SD card. An envelope specifies a
-   * changing volume over a fixed period of time.
+   * changing intensity over a fixed period of time.
    *
    * There are four time/frequency parameters that can be easily confused.
    *
@@ -118,19 +118,19 @@ class Vibrate
    *   This is the frequency of the vibrator, typically 40-250 Hz.
    *
    * Envelope length
-   *   Each volume-profile "envelope" has a length, the time between
+   *   Each intensity-profile "envelope" has a length, the time between
    *   repeats of the envelope. For example, a single cycle "sawtooth"
-   *   pattern might be one second, meaning the volume would rise to
+   *   pattern might be one second, meaning the intensity would rise to
    *   maximum for 1/2 second, then fall to zero for another 1/2 second,
    *   then repeat.
    *
    * msecPerPoint
-   *   Envelopes have varying lengths (number of volume points). For example,
-   *   a smoothly-descending volume might have 40 values, whereas
+   *   Envelopes have varying lengths (number of intensity points). For example,
+   *   a smoothly-descending intensity might have 40 values, whereas
    *   a on/of (square wave) might just have two values. Imagine the
    *   envelope length (above) is one second. In that case, the two-point
    *   square wave gets 500 msec per point, whereas the 40-point smooth
-   *   descending volume would get 25 msec per point.
+   *   descending intensity would get 25 msec per point.
    *   
    * PWM frequency
    *   The pulse-width modulation frequency is more-or-less irrelevant to
@@ -143,19 +143,20 @@ class Vibrate
    ----------------------------------------------------------------------*/
 
   VibrationEnvelope _vibrationEnvelope[NUM_CHANNELS];
-  int  _setVolume[NUM_CHANNELS]                     = {0, 0, 0, 0};
-  int  _actualVolume[NUM_CHANNELS]                  = {0, 0, 0, 0};
-  bool _isPlaying[NUM_CHANNELS]                     = {false, false, false, false};
+  int  _setIntensity[NUM_CHANNELS]                   = {100, 100, 100, 100};
+  int  _actualIntensity[NUM_CHANNELS]                = {0, 0, 0, 0};
+  bool _isPlaying[NUM_CHANNELS]                      = {false, false, false, false};
 
-  // managing volume envelope
-  int _indexInEnvelope[NUM_CHANNELS]                = {0, 0, 0, 0};
-  unsigned long _startTimeForPoint[NUM_CHANNELS]    = {0, 0, 0, 0};
+  // managing intensity envelope
+  int _indexInEnvelope[NUM_CHANNELS]                 = {0, 0, 0, 0};
+  unsigned long _startTimeForPoint[NUM_CHANNELS]     = {0, 0, 0, 0};
 
   // managing vibration frequency
-  bool _currentState[NUM_CHANNELS]                  = {false, false, false, false};
-  int  _vibrationFrequency[NUM_CHANNELS]            = {0, 0, 0, 0};
-  int  _vibrationPeriod[NUM_CHANNELS]               = {0, 0, 0, 0};     // period = 1/frequency
-  unsigned long _startTimeForVibration[NUM_CHANNELS]= {0, 0, 0, 0};
+  bool _currentState[NUM_CHANNELS]                   = {false, false, false, false};
+  int  _vibrationFrequency[NUM_CHANNELS]             = {0, 0, 0, 0};
+  int  _vibrationPeriod[NUM_CHANNELS]                = {0, 0, 0, 0};     // period = 1/(frequency * speedMultiplier)
+  int  _speedMultiplierPercent[NUM_CHANNELS]         = {100, 100, 100, 100};
+  unsigned long _startTimeForVibration[NUM_CHANNELS] = {0, 0, 0, 0};
 
   int _pwmFrequency;
   

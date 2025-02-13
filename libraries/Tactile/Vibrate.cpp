@@ -66,7 +66,8 @@ Vibrate* Vibrate::setup(TeensyUtils *tc) {
   tc->logAction2("Vibrate::setup(): PWM frequency set: ", DEFAULT_PWM_FREQUENCY); 
 
   // Assign simple vibration to all channels
-  for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+  for (int ch = 1; ch <= NUM_CHANNELS; ch++) {
+    v->setIntensity(ch, 100);
     v->setVibrationEnvelope(ch, "square");
     v->setVibrationFrequency(ch, DEFAULT_VIBRATOR_FREQUENCY);
   }
@@ -76,7 +77,7 @@ Vibrate* Vibrate::setup(TeensyUtils *tc) {
 
 /*----------------------------------------------------------------------
  * This is the main method that controls the actual hardware. It
- * creates the vibrator output and applies the volume envelope to it.
+ * creates the vibrator output and applies the intensity envelope to it.
  *----------------------------------------------------------------------*/
 
 void Vibrate::doTimerTasks() {
@@ -94,8 +95,8 @@ void Vibrate::doTimerTasks() {
           _currentState[channel] = false;
           int pin1 = _convertChannelToPin1(channel);
           int pin2 = _convertChannelToPin2(channel);
-          analogWrite(pin1, 127 + _actualVolume[channel]);
-          analogWrite(pin2, 128 - _actualVolume[channel]);
+          analogWrite(pin1, 127 + _actualIntensity[channel]);
+          analogWrite(pin2, 128 - _actualIntensity[channel]);
           if (channel == 0)
             analogWrite(33, HIGH);        // oscilloscope trigger
         }
@@ -104,8 +105,8 @@ void Vibrate::doTimerTasks() {
           _currentState[channel] = true;
           int pin1 = _convertChannelToPin1(channel);
           int pin2 = _convertChannelToPin2(channel);
-          analogWrite(pin1, 128 - _actualVolume[channel]);
-          analogWrite(pin2, 127 + _actualVolume[channel]);
+          analogWrite(pin1, 128 - _actualIntensity[channel]);
+          analogWrite(pin2, 127 + _actualIntensity[channel]);
           if (channel == 0)
             analogWrite(33, LOW);        // oscilloscope trigger
         }
@@ -113,14 +114,23 @@ void Vibrate::doTimerTasks() {
         _startTimeForVibration[channel] = timeNow; // restart cycle timer
       }
 
-      // Now see if it's time to go to the next point in the volume envelope
+      // Now see if it's time to go to the next point in the intensity envelope
+      // If there's a speed multiplier, apply it. We effectively speed up the
+      // clock by this amount.
       int timeInPoint = timeNow - _startTimeForPoint[channel];
-      if (timeInPoint > _vibrationEnvelope[channel].msecPerPoint) {
-        _indexInEnvelope[channel] += 1;         // next point in volume envelope
+      int adjustedTime;
+      if (_speedMultiplierPercent[channel] != 100) {
+        adjustedTime = (int)(0.499 + (float)timeInPoint * (1.0 + _speedMultiplierPercent[channel] / 100.0));
+      } else {
+        adjustedTime = timeInPoint;
+      }
+      if (adjustedTime > _vibrationEnvelope[channel].msecPerPoint) {
+        _indexInEnvelope[channel] += 1;         // next point in intensity envelope
         if (_indexInEnvelope[channel] >= _vibrationEnvelope[channel].numberOfPoints) {
           _indexInEnvelope[channel] = 0;
         }
-        _actualVolume[channel] = _calculateActualVolume(channel,_vibrationEnvelope[channel].volumes[_indexInEnvelope[channel]]);
+        int setIntensity = _vibrationEnvelope[channel].intensities[_indexInEnvelope[channel]];
+        _actualIntensity[channel] = _calculateActualIntensity(channel, setIntensity);
         _startTimeForPoint[channel] = timeNow;
       }
     }
@@ -141,7 +151,7 @@ void Vibrate::start(int channel) {
     return;
   }
   _isPlaying[channel] = true;
-  _actualVolume[channel] = _calculateActualVolume(channel, _vibrationEnvelope[channel].volumes[0]);
+  _actualIntensity[channel] = _calculateActualIntensity(channel, _vibrationEnvelope[channel].intensities[0]);
 
   // setup for vibration timer
   unsigned long timenow = millis();
@@ -180,7 +190,7 @@ void Vibrate::setVibrationEnvelope(int channel, const char *name) {
       _vibrationEnvelope[channel].numberOfPoints = 0;
       _vibrationEnvelope[channel].msecPerPoint = 0;
       _vibrationEnvelope[channel].msecTotal = 0;
-      _vibrationEnvelope[channel].volumes[0] = -1;
+      _vibrationEnvelope[channel].intensities[0] = -1;
       if (_tc->getLogLevel() > 0) {
         Serial.print("setVibrationEnvelope: name not found: "); Serial.println(name);
       }
@@ -235,7 +245,7 @@ void Vibrate::setVibrationEnvelopeFile(int channel, const char *name) {
     Serial.print("setVibrationEnvelopeFile: opened file: ");
     Serial.println(name);
   }
-  // read parameters up to the "volumes:" line
+  // read parameters up to the "intensities:" line
   int   frequency = 0;
   int   numberOfPoints = 0;  
   float soundLength = 0;
@@ -257,7 +267,7 @@ void Vibrate::setVibrationEnvelopeFile(int channel, const char *name) {
       frequency = atoi(value);
     } else if (0 == strcmp(buffer, "numPoints")) {
       numberOfPoints = atoi(value);
-    } else if (0 == strcmp(buffer, "volumes")) {
+    } else if (0 == strcmp(buffer, "intensities")) {
       break;
     }
   }
@@ -269,19 +279,19 @@ void Vibrate::setVibrationEnvelopeFile(int channel, const char *name) {
     int len = _readln(myFile, buffer, 100);
     if (len == 0)
       break;
-    int volume = atoi(buffer);
-    ve->volumes[n++] = volume;
+    int intensity = atoi(buffer);
+    ve->intensities[n++] = intensity;
   }
   myFile.close();
 
   if (n != numberOfPoints) {
-    Serial.print("Error: numPoints doesn't match actual number of volume values: ");
+    Serial.print("Error: numPoints doesn't match actual number of intensity values: ");
     Serial.print(numberOfPoints); Serial.print(":"); Serial.println(n);
     numberOfPoints = n;
   }
   if (numberOfPoints <= 0) {    // invalid values, set simple default
     numberOfPoints = 1;
-    ve->volumes[0] = 100;
+    ve->intensities[0] = 100;
   }
 
   ve->msecTotal = (int)(1000.0 * soundLength);
@@ -308,6 +318,21 @@ void Vibrate::overrideVibrationEnvelopeRepeats(int channel, bool repeats) {
  _vibrationEnvelope[channel].repeats = repeats;
 }
 
+// Note that this isn't the same as overrideVibrationEnvelopeDuration(), which changes
+// the envolope's properties permanently. This one is like increasing the clock speed.
+// The multiplier is a percentage, so 0% means no change, 100% means twice as fast,
+// and -50 means half as fast.
+
+void Vibrate::setSpeedMultiplier(int channel, int multiplierPercent) {
+  channel -= 1;
+  channel = _checkChannel(channel);
+  if (multiplierPercent < -99)
+    multiplierPercent = -99;
+  else if (multiplierPercent > 1000)
+    multiplierPercent = 1000;
+  _speedMultiplierPercent[channel] = multiplierPercent;
+}
+
 void Vibrate::setVibrationFrequency(int channel, int frequency) {
   channel -= 1;
   channel = _checkChannel(channel);
@@ -319,17 +344,17 @@ void Vibrate::setVibrationFrequency(int channel, int frequency) {
   _vibrationPeriod[channel] = (int)(0.5 + 1000.0/frequency);     // convert frequency to msec
 }
 
-void Vibrate::setVolume(int channel, int percent) {
+void Vibrate::setIntensity(int channel, int percent) {
   channel -= 1;
   channel = _checkChannel(channel);
   if      (percent > 100) percent = 100;
   else if (percent < 0)   percent = 0;
-  _setVolume[channel] = percent;
+  _setIntensity[channel] = percent;
 }
 
-void Vibrate::setVolume(int percent) {
+void Vibrate::setIntensity(int percent) {
   for (int c = 1; c <= NUM_CHANNELS; c++) {
-    setVolume(c, percent);
+    setIntensity(c, percent);
   }
 }
 
@@ -378,7 +403,7 @@ int Vibrate::_convertChannelToPin2(int channel) {
 
 void Vibrate::_calculateLengthOfEnvelope(int channel) {
   int length = 0;
-  int *v = _vibrationEnvelope[channel].volumes;
+  int *v = _vibrationEnvelope[channel].intensities;
   for (length = 0; ; length++) {
     if (v[length] < 0) {
       _vibrationEnvelope[channel].numberOfPoints = length;
@@ -392,11 +417,11 @@ void Vibrate::_calculateMsecPerEnvelopePoint(int channel) {
   ve->msecPerPoint = (int) (0.5 + (float)ve->msecTotal / (float)ve->numberOfPoints);
 }
 
-int Vibrate::_calculateActualVolume(int channel, int volume) {
-  // setVolume() and requested volume both specify 0-100%.
-  // Requested "volume" is adjusted by overall volume setting, i.e. if an
-  // envelope's point is at 50 and the set volume is at 50, then the output
-  // volume will be 25 (50*50/100). This is multiplied by 128/100 to convert
+int Vibrate::_calculateActualIntensity(int channel, int intensity) {
+  // setIntensity() and requested intensity both specify 0-100%.
+  // Requested "intensity" is adjusted by overall intensity setting, i.e. if an
+  // envelope's point is at 50 and the set intensity is at 50, then the output
+  // intensity will be 25 (50*50/100). This is multiplied by 128/100 to convert
   // to integer in range 0..128.
-  return int(0.5 + (float)(volume * _setVolume[channel]) * 128.0 / 10000.0);
+  return int(0.5 + (float)(intensity * _setIntensity[channel]) * 128.0 / 10000.0);
 }

@@ -71,6 +71,7 @@ class Tactile
 #define setProximityAsVolumeMode useProximityAsVolume
   
   /*---------- These are forwarded to the Vibrator module ----------*/
+  void setVibratorType(int channel, VibratorType vibType);
   void setVibrationIntensity(int channel, int intensity);
   void setVibrationEnvelope(int channel, const char *name);
   void setVibrationEnvelopeFile(int channel, const char *fileName);

@@ -90,28 +90,43 @@ void Vibrate::doTimerTasks() {
     int period = _vibrationPeriod[channel];
     
     if (_isPlaying[channel]) {
-      if (timeInCycle <= period/2) {            // 1st half?
-        if (_currentState[channel]) {           // just started 1st half? Turn the juice on
-          _currentState[channel] = false;
+
+      if (_vibratorType[channel] == linearVibrator) {
+        // Linear vibrator requires AC signal at the specified frequency (e.g. 150 Hz). This
+        // code reverses the polarity of the output each period (where period = 1/freq).
+        if (timeInCycle <= period/2) {            // 1st half?
+          if (_currentState[channel]) {           // just started 1st half? Turn the juice on
+            _currentState[channel] = false;
+            int pin1 = _convertChannelToPin1(channel);
+            int pin2 = _convertChannelToPin2(channel);
+            analogWrite(pin1, 127 + _actualIntensity[channel]);
+            analogWrite(pin2, 128 - _actualIntensity[channel]);
+            if (channel == 0)
+              analogWrite(33, HIGH);        // oscilloscope trigger
+          }
+        } else if (timeInCycle <= period) {       // 2nd half?
+          if (!_currentState[channel]) {          // just started 2nd half? Turn the juice off
+            _currentState[channel] = true;
+            int pin1 = _convertChannelToPin1(channel);
+            int pin2 = _convertChannelToPin2(channel);
+            analogWrite(pin1, 128 - _actualIntensity[channel]);
+            analogWrite(pin2, 127 + _actualIntensity[channel]);
+            if (channel == 0)
+              analogWrite(33, LOW);        // oscilloscope trigger
+          }
+        } else {        // Finished 2nd half of cycle.
+          _startTimeForVibration[channel] = timeNow; // restart cycle timer
+        }
+      }
+      else {
+        // Motor vibrator requires DC signal. Just turn it on when the channel starts.
+        if (!_currentState[channel]) {
+          _currentState[channel] = true;
           int pin1 = _convertChannelToPin1(channel);
           int pin2 = _convertChannelToPin2(channel);
           analogWrite(pin1, 127 + _actualIntensity[channel]);
           analogWrite(pin2, 128 - _actualIntensity[channel]);
-          if (channel == 0)
-            analogWrite(33, HIGH);        // oscilloscope trigger
         }
-      } else if (timeInCycle <= period) {       // 2nd half?
-        if (!_currentState[channel]) {          // just started 2nd half? Turn the juice off
-          _currentState[channel] = true;
-          int pin1 = _convertChannelToPin1(channel);
-          int pin2 = _convertChannelToPin2(channel);
-          analogWrite(pin1, 128 - _actualIntensity[channel]);
-          analogWrite(pin2, 127 + _actualIntensity[channel]);
-          if (channel == 0)
-            analogWrite(33, LOW);        // oscilloscope trigger
-        }
-      } else {        // Finished 2nd half of cycle.
-        _startTimeForVibration[channel] = timeNow; // restart cycle timer
       }
 
       // Now see if it's time to go to the next point in the intensity envelope
@@ -125,13 +140,24 @@ void Vibrate::doTimerTasks() {
         adjustedTime = timeInPoint;
       }
       if (adjustedTime > _vibrationEnvelope[channel].msecPerPoint) {
-        _indexInEnvelope[channel] += 1;         // next point in intensity envelope
+
+        // Go to next point in intensity envelope
+        _indexInEnvelope[channel] += 1;
         if (_indexInEnvelope[channel] >= _vibrationEnvelope[channel].numberOfPoints) {
           _indexInEnvelope[channel] = 0;
         }
         int setIntensity = _vibrationEnvelope[channel].intensities[_indexInEnvelope[channel]];
         _actualIntensity[channel] = _calculateActualIntensity(channel, setIntensity);
         _startTimeForPoint[channel] = timeNow;
+
+        // If motor vibrator, change the intensity now (once). For linear vibrators,
+        // the intensity is set above in the AC signal part.
+        if (_vibratorType[channel] == motorVibrator) {
+          int pin1 = _convertChannelToPin1(channel);
+          int pin2 = _convertChannelToPin2(channel);
+          analogWrite(pin1, 127 + _actualIntensity[channel]);
+          analogWrite(pin2, 128 - _actualIntensity[channel]);
+        }
       }
     }
   }
@@ -331,6 +357,12 @@ void Vibrate::setSpeedMultiplier(int channel, int multiplierPercent) {
   else if (multiplierPercent > 1000)
     multiplierPercent = 1000;
   _speedMultiplierPercent[channel] = multiplierPercent;
+}
+
+void Vibrate::setVibratorType(int channel, VibratorType vibType) {
+  channel -= 1;
+  channel = _checkChannel(channel);
+  _vibratorType[channel] = vibType;
 }
 
 void Vibrate::setVibrationFrequency(int channel, int frequency) {

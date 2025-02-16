@@ -65,6 +65,7 @@ class Vibrate
   void setVibrationEnvelopeFile(int channel, const char *fileName);
   void overrideVibrationEnvelopeDuration(int channel, int msec);
   void overrideVibrationEnvelopeRepeats(int channel, bool repeat);
+  void setVibratorType(int channel, VibratorType vibType);
   void setVibrationFrequency(int channel, int frequency);
   void doTimerTasks();
   
@@ -152,12 +153,12 @@ class Vibrate
   unsigned long _startTimeForPoint[NUM_CHANNELS]     = {0, 0, 0, 0};
 
   // managing vibration frequency
-  bool _currentState[NUM_CHANNELS]                   = {false, false, false, false};
-  int  _vibrationFrequency[NUM_CHANNELS]             = {0, 0, 0, 0};
-  int  _vibrationPeriod[NUM_CHANNELS]                = {0, 0, 0, 0};     // period = 1/(frequency * speedMultiplier)
-  int  _speedMultiplierPercent[NUM_CHANNELS]         = {100, 100, 100, 100};
+  bool          _currentState[NUM_CHANNELS]          = {false, false, false, false};
+  int           _vibrationPeriod[NUM_CHANNELS]       = {0, 0, 0, 0};     // period = 1/(frequency * speedMultiplier)
+  int           _speedMultiplierPercent[NUM_CHANNELS]= {100, 100, 100, 100};
   unsigned long _startTimeForVibration[NUM_CHANNELS] = {0, 0, 0, 0};
-
+  int           _vibrationFrequency[NUM_CHANNELS]    = {0, 0, 0, 0};
+  VibratorType  _vibratorType[NUM_CHANNELS]          = {motorVibrator, motorVibrator, motorVibrator, motorVibrator};
   int _pwmFrequency;
   
 };

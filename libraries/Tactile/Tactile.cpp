@@ -174,6 +174,13 @@ void Tactile::setAveragingStrength(int samples) {
 
 /*-------------------- vibration controls --------------------*/
 
+void Tactile::setVibratorType(int channel, VibratorType vibType) {
+  _v->setVibratorType(channel, vibType);
+}
+void Tactile::setVibrationFrequency(int channel, int frequency) {
+  _v->setVibrationFrequency(channel, frequency);
+}
+
 void Tactile::setVibrationIntensity(int channel, int intensityPercent) {
   _v->setIntensity(intensityPercent);
 }
@@ -188,9 +195,6 @@ void Tactile::overrideVibrationEnvelopeDuration(int channel, int msec) {
 }
 void Tactile::overrideVibrationEnvelopeRepeats(int channel, bool repeat) {
   _v->overrideVibrationEnvelopeRepeats(channel, repeat);
-}
-void Tactile::setVibrationFrequency(int channel, int frequency) {
-  _v->setVibrationFrequency(channel, frequency);
 }
 void Tactile::useProximityAsIntensity(int channel, bool on) {
   if (channel < 1 || channel > NUM_CHANNELS)

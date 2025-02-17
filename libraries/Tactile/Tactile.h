@@ -49,26 +49,35 @@ class Tactile
   void setLogLevel(int level);
 
   /*---------- These are forwarded to the Sensors class ----------*/
-  void setTouchReleaseThresholds(int touch, int release);
-  void setTouchReleaseThresholds(int sensorNumber, int touch, int release);
-  void ignoreSensor(int sensorNumber, bool ignore);
-  void setTouchToStop(bool on);                // true == touch-on-touch-off (normally touch-on-release-off)
   void setMultiTrackMode(bool on);             // true == enable multiple simultaneous tracks
-  void setContinueTrackMode(bool on);          // true == 2nd touch continues track where it left off
-  void setLoopMode(bool on);                   // true == track restarts (loops) when end reached
+  void ignoreSensor(int channel, bool ignore);
+  void setTouchReleaseThresholds(int touch, int release);
+  void setTouchReleaseThresholds(int channel, int touch, int release);
+  void setTouchToStop(int channel, bool on);            // true == touch-on-touch-off (normally touch-on-release-off)
+  void setTouchToStop(bool on);
+  void setContinueTrackMode(int channel, bool on);      // true == 2nd touch continues track where it left off
+  void setContinueTrackMode(bool on);
+  void setLoopMode(int channel, bool on);               // true == track restarts (loops) when end reached
+  void setLoopMode(bool on);
 
   /*---------- These are forwarded to the AudioPlayer module ----------*/
+  void setVolume(int channel, int percent);
   void setVolume(int percent);
-  void useProximityAsVolume(bool on);          // Proximity controls volume, or fixed volume
-  void setProximityMultiplier(int sensorNumber, float m);  // 1.0 is no amplification, more increases sensitivity
+  void useProximityAsVolume(int channel, bool on);    // Proximity controls volume, or fixed volume
+  void useProximityAsVolume(bool on);
+  void setProximityMultiplier(int channel, float m);  // 1.0 is no amplification, more increases sensitivity
+  void setFadeInTime(int channel, int milliseconds);
   void setFadeInTime(int milliseconds);
+  void setFadeOutTime(int channel, int milliseconds);
   void setFadeOutTime(int milliseconds);
-  void setAveragingStrength(int samples);      // more smooths signal, default is 200
-  void setPlayRandomTrackMode(bool on);        // true == random selection from sensor's directory
-  const char *getTrackName(int trackNum);
+  void useRandomTracks(int channel, bool on);         // true == random selection from sensor's directory
+  void useRandomTracks(bool on);
+  void setAveragingStrength(int samples);             // more smooths signal, default is 200
+  const char *getTrackName(int channel);
 
   // renamed -- use #define so that Tactile v1 sketches will work
 #define setProximityAsVolumeMode useProximityAsVolume
+#define setPlayRandomTrackMode useRandomTracks
   
   /*---------- These are forwarded to the Vibrator module ----------*/
   void setVibratorType(int channel, VibratorType vibType);
@@ -94,16 +103,16 @@ class Tactile
   bool     _useAudioInput[NUM_CHANNELS];
   float    _touchThreshold[NUM_CHANNELS];
   float    _releaseThreshold[NUM_CHANNELS];
-  bool     _touchToStop;
-  bool     _multiTrack;
-  bool     _continueTrack;
-  uint32_t _restartTimeout;
-  bool     _useProximityAsVolume;
-  int      _trackCurrentlyPlaying;
+  bool     _touchToStop[NUM_CHANNELS];
+  bool     _continueTrack[NUM_CHANNELS];
+  bool     _useProximityAsVolume[NUM_CHANNELS];
   bool     _proximityControlsIntensity[NUM_CHANNELS];
   bool     _proximityControlsSpeed[NUM_CHANNELS];
   int      _speedMultiplierPercent[NUM_CHANNELS];
+  bool     _multiTrack;
+  uint32_t _restartTimeout;
   uint32_t _lastActionTime;
+  int      _trackCurrentlyPlaying;
   int      _ledCycle;
   
   void _touchLoop();

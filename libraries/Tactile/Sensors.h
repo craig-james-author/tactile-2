@@ -41,13 +41,13 @@ class Sensors
 
   // Touch and proximity sensing
   void  setTouchReleaseThresholds(float touchThreshold, float releaseThreshold);
-  void  setTouchReleaseThresholds(int sensorNumber, float touchThreshold, float releaseThreshold);
-  void  ignoreSensor(int sensorNumber, bool ignore);
-  void  setTouchToggleMode(bool on);
-  int   getTouchStatus(int sensorStatus[], int sensorChanges[]);
-  float getProximityPercent(int sensorNumber);
+  void  setTouchReleaseThresholds(int channel, float touchThreshold, float releaseThreshold);
+  void  ignoreSensor(int channel, bool ignore);
+  void  setTouchToggleMode(int channel, bool on);
+  int   getTouchStatus(float proximityValues[], int sensorStatus[], int sensorChanges[]);
+  float getProximityPercent(int channel);
   void  setAveragingStrength(int samples);
-  void  setProximityMultiplier(int sensorNumber, float m);
+  void  setProximityMultiplier(int channel, float m);
 
  private:
 
@@ -72,7 +72,7 @@ class Sensors
   float _filteredSensorValue[NUM_CHANNELS];
   int   _averagingSamples;
 
-  int _checkSensorRange(int sensorNumber);
+  int _checkSensorRange(int channel);
 
 };
 

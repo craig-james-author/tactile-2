@@ -40,22 +40,21 @@ class AudioPlayer
 
   const char *getTrackName(int trackNum);
 
-  void setVolume(int percent);
-  void setVolume(int trackNumber, int percent);
-  void setFadeInTime(int milliseconds);
-  void setFadeOutTime(int milliseconds);
-  void cancelFades(int trackNumber);
+  void setVolume(int channel, int percent);
+  void setFadeInTime(int channel, int milliseconds);
+  void setFadeOutTime(int channel, int milliseconds);
+  void cancelFades(int channel);
 
-  void setPlayRandomTrackMode(bool r);
-  void setLoopMode(bool on);
+  void useRandomTracks(int channel, bool r);
+  void setLoopMode(int channel, bool on);
 
-  void startTrack(int sensorNumber);
-  void stopTrack(int sensorNumber);
-  bool isPlaying(int sensorNumber);
+  void startTrack(int channel);
+  void stopTrack(int channel);
+  bool isPlaying(int channel);
 
-  void pauseTrack(int sensorNumber);
-  void resumeTrack(int sensorNumber);
-  bool isPaused(int sensorNumber);
+  void pauseTrack(int channel);
+  void resumeTrack(int channel);
+  bool isPaused(int channel);
 
   int  cancelAll();
 
@@ -69,11 +68,11 @@ class AudioPlayer
   // Volume control
   int _targetVolume[NUM_CHANNELS];
   int _actualVolume[NUM_CHANNELS];
-  int _fadeInTime;
-  int _fadeOutTime;
+  int _fadeInTime[NUM_CHANNELS];
+  int _fadeOutTime[NUM_CHANNELS];
 
-  bool _randomTrackMode;
-  bool _loopMode;
+  bool _randomTrackMode[NUM_CHANNELS];
+  bool _loopMode[NUM_CHANNELS];
 
   // Audio player status (per track)
   uint32_t _lastStartTime[NUM_CHANNELS];
@@ -84,13 +83,13 @@ class AudioPlayer
   bool     _isPaused[NUM_CHANNELS];
   
   // Internal methods
-  AudioPlaySdWavPR *_getPlayerByTrack(int trackNumber);
+  AudioPlaySdWavPR *_getPlayerByTrack(int channel);
   uint8_t _volumePctToByte(int percent);
   void    _setActualVolume(int trackNum, int percent);
-  int     _calculateFadeTime(int trackNumber, bool goingUp);
-  void    _doFadeInOut(int trackNumber);
-  void    _startTrack(int trackNumber);
-  void    _startRandomTrack(int trackNumber);
+  int     _calculateFadeTime(int channel, bool goingUp);
+  void    _doFadeInOut(int channel);
+  void    _startTrack(int channel);
+  void    _startRandomTrack(int channel);
 };
 
 #endif

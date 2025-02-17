@@ -66,7 +66,7 @@ Vibrate* Vibrate::setup(TeensyUtils *tc) {
   tc->logAction2("Vibrate::setup(): PWM frequency set: ", DEFAULT_PWM_FREQUENCY); 
 
   // Assign simple vibration to all channels
-  for (int ch = 1; ch <= NUM_CHANNELS; ch++) {
+  for (int ch = 0; ch < NUM_CHANNELS; ch++) {
     v->setIntensity(ch, 100);
     v->setVibrationEnvelope(ch, "square");
     v->setVibrationFrequency(ch, DEFAULT_VIBRATOR_FREQUENCY);
@@ -164,13 +164,10 @@ void Vibrate::doTimerTasks() {
 }
 
 /*----------------------------------------------------------------------
- * Set parameters and activate actions. Note that these start with
- * the external channel numbers 1..N, not 0..N-1.
+ * Set parameters and activate actions.
  ----------------------------------------------------------------------*/
 
 void Vibrate::start(int channel) {
-  channel -= 1;
-  channel = _checkChannel(channel);
   if (_vibrationEnvelope[channel].numberOfPoints == -1) {
     _isPlaying[channel] = false;
     _tc->logAction("Error, can't start, no vibration envelope assigned, channel ", channel);
@@ -191,8 +188,6 @@ void Vibrate::start(int channel) {
 }
 
 void Vibrate::stop(int channel) {
-  channel -= 1;
-  channel = _checkChannel(channel);
   _isPlaying[channel] = false;
   int pin1 = _convertChannelToPin1(channel);
   int pin2 = _convertChannelToPin2(channel);
@@ -202,14 +197,10 @@ void Vibrate::stop(int channel) {
 }
 
 bool Vibrate::isPlaying(int channel) {
-  channel -= 1;
-  channel = _checkChannel(channel);
   return _isPlaying[channel];
 }
 
 void Vibrate::setVibrationEnvelope(int channel, const char *name) {
-  channel -= 1;
-  channel = _checkChannel(channel);
   for (int i = 0; ; i++) {
     if (builtInEnvelopes[i].name[0] == 0) {     // end of list
       _vibrationEnvelope[channel].name[0] = '\0';
@@ -258,9 +249,6 @@ void Vibrate::setVibrationEnvelopeFile(int channel, const char *name) {
 
   char buffer[101];
 
-  channel -= 1;
-  channel = _checkChannel(channel);
-  
   File myFile = SD.open(name, FILE_READ);
   if (!myFile) {
     Serial.print("setVibrationEnvelopeFile: can't open file: ");
@@ -328,8 +316,6 @@ void Vibrate::setVibrationEnvelopeFile(int channel, const char *name) {
 }
 
 void Vibrate::overrideVibrationEnvelopeDuration(int channel, int msec) {
-  channel -= 1;
-  channel = _checkChannel(channel);
   if (_vibrationEnvelope[channel].numberOfPoints == 0)
     return;
   if (msec < 1) msec = 1;
@@ -339,8 +325,6 @@ void Vibrate::overrideVibrationEnvelopeDuration(int channel, int msec) {
 }
 
 void Vibrate::overrideVibrationEnvelopeRepeats(int channel, bool repeats) {
-  channel -= 1;
-  channel = _checkChannel(channel);
  _vibrationEnvelope[channel].repeats = repeats;
 }
 
@@ -350,8 +334,6 @@ void Vibrate::overrideVibrationEnvelopeRepeats(int channel, bool repeats) {
 // and -50 means half as fast.
 
 void Vibrate::setSpeedMultiplier(int channel, int multiplierPercent) {
-  channel -= 1;
-  channel = _checkChannel(channel);
   if (multiplierPercent < -99)
     multiplierPercent = -99;
   else if (multiplierPercent > 1000)
@@ -360,14 +342,10 @@ void Vibrate::setSpeedMultiplier(int channel, int multiplierPercent) {
 }
 
 void Vibrate::setVibratorType(int channel, VibratorType vibType) {
-  channel -= 1;
-  channel = _checkChannel(channel);
   _vibratorType[channel] = vibType;
 }
 
 void Vibrate::setVibrationFrequency(int channel, int frequency) {
-  channel -= 1;
-  channel = _checkChannel(channel);
   if (frequency < 20)
     frequency = 20;
   else if (frequency > 400)
@@ -377,15 +355,13 @@ void Vibrate::setVibrationFrequency(int channel, int frequency) {
 }
 
 void Vibrate::setIntensity(int channel, int percent) {
-  channel -= 1;
-  channel = _checkChannel(channel);
   if      (percent > 100) percent = 100;
   else if (percent < 0)   percent = 0;
   _setIntensity[channel] = percent;
 }
 
 void Vibrate::setIntensity(int percent) {
-  for (int c = 1; c <= NUM_CHANNELS; c++) {
+  for (int c = 0; c < NUM_CHANNELS; c++) {
     setIntensity(c, percent);
   }
 }
@@ -408,12 +384,6 @@ void Vibrate::setPwmFrequency(int frequency) {
 /*----------------------------------------------------------------------
  * Internal methods.
  ----------------------------------------------------------------------*/
-
-int Vibrate::_checkChannel(int channel) {
-  if (channel < 0) return 0;
-  if (channel >= NUM_CHANNELS) return NUM_CHANNELS - 1;
-  return channel;
-}
 
 int Vibrate::_convertChannelToPins(int channel) {
   if (channel < 0)

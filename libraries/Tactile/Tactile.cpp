@@ -42,12 +42,17 @@ void Tactile::setLogLevel(int level) {
   _tu->setLogLevel(level);
 }
 
+static int channelExtern2Intern(int channel) {
+  channel -= 1;
+  if (channel < 0) return 0;
+  if (channel >= NUM_CHANNELS) return NUM_CHANNELS - 1;
+  return channel;
+}
+
 /*---------- Audio Sound controls ----------*/
 
 void Tactile::setOutputDestination(int channel, OutputDest dest1, OutputDest dest2) {
-  if (channel < 1 || channel > NUM_CHANNELS)
-    return;
-  channel -= 1; // 1..N external, 0..N-1 internal
+  channel = channelExtern2Intern(channel);
   _useAudioOutput[channel] = false;
   _useVibrationOutput[channel] = false;
   if (dest1 == audioOutput || dest2 == audioOutput) {
@@ -59,9 +64,7 @@ void Tactile::setOutputDestination(int channel, OutputDest dest1, OutputDest des
 }
 
 void Tactile::setInputSource(int channel, InputSource source) {
-  if (channel < 1 || channel > NUM_CHANNELS)
-    return;
-  channel -= 1; // 1..N external, 0..N-1 internal
+  channel = channelExtern2Intern(channel);
   _useTouchInput[channel] = false;
   _useAudioInput[channel] = false;
   if (source == touchInput) {
@@ -71,31 +74,47 @@ void Tactile::setInputSource(int channel, InputSource source) {
   }
 }
 
-const char *Tactile::getTrackName(int trackNum) {
-  return _ta->getTrackName(trackNum);
+const char *Tactile::getTrackName(int channel) {
+  channel = channelExtern2Intern(channel);
+  return _ta->getTrackName(channel);
+}
+
+void Tactile::setVolume(int channel, int percent) {
+  channel = channelExtern2Intern(channel);
+  _ta->setVolume(channel, percent);
 }
 
 void Tactile::setVolume(int percent) {
-  _ta->setVolume(percent);
+  for (int ch = 1; ch <= NUM_CHANNELS; ch++)
+    setVolume(ch, percent);
 }
 
-void Tactile::setLoopMode(boolean on) {
-  _ta->setLoopMode(on);
+void Tactile::useRandomTracks(int channel, boolean on) {
+  channel = channelExtern2Intern(channel);
+  _ta->useRandomTracks(channel, on);
 }
 
-void Tactile::setPlayRandomTrackMode(boolean on) {
-  _ta->setPlayRandomTrackMode(on);
+void Tactile::useRandomTracks(boolean on) {
+  for (int ch = 1; ch <= NUM_CHANNELS; ch++)
+    useRandomTracks(ch, on);
 }
 
-void Tactile::useProximityAsVolume(boolean on) {
-  _useProximityAsVolume = on;
+void Tactile::useProximityAsVolume(int channel, boolean on) {
+  channel = channelExtern2Intern(channel);
+  _useProximityAsVolume[channel] = on;
   if (on) {
-    _ta->setFadeInTime(0);        // Fade in/out isn't compatible with proximity-as-volume
-    _ta->setFadeOutTime(0);
+    _ta->setFadeInTime(channel, 0);        // Fade in/out isn't compatible with proximity-as-volume
+    _ta->setFadeOutTime(channel, 0);
   }
 }
 
-void Tactile::setFadeInTime(int milliseconds) {
+void Tactile::useProximityAsVolume(boolean on) {
+  for (int ch = 1; ch <= NUM_CHANNELS; ch++)
+    useProximityAsVolume(ch, on);
+}
+
+void Tactile::setFadeInTime(int channel, int milliseconds) {
+  channel = channelExtern2Intern(channel);
   if (milliseconds > 0 && _useProximityAsVolume) {
     Serial.println("WARNING: proximity-as-volume mode is incompatible with fade-in/fade-out. "
                    "Fade-in time ignored.");
@@ -103,10 +122,16 @@ void Tactile::setFadeInTime(int milliseconds) {
   }
   if (milliseconds < 0)
     milliseconds = 0;
-  _ta->setFadeInTime(milliseconds);
+  _ta->setFadeInTime(channel, milliseconds);
 }
 
-void Tactile::setFadeOutTime(int milliseconds) {
+void Tactile::setFadeInTime(int milliseconds) {
+  for (int ch = 1; ch <= NUM_CHANNELS; ch++)
+    setFadeInTime(ch, milliseconds);
+}
+
+void Tactile::setFadeOutTime(int channel, int milliseconds) {
+  channel = channelExtern2Intern(channel);
   if (milliseconds > 0 && _useProximityAsVolume) {
     Serial.println("WARNING: proximity-as-volume mode is incompatible with fade-in/fade-out. "
                    "Fade-out time ignored.");
@@ -114,18 +139,27 @@ void Tactile::setFadeOutTime(int milliseconds) {
   }
   if (milliseconds < 0)
     milliseconds = 0;
-  _ta->setFadeOutTime(milliseconds);
+  _ta->setFadeOutTime(channel, milliseconds);
+}
+
+void Tactile::setFadeOutTime(int milliseconds) {
+  for (int ch = 1; ch <= NUM_CHANNELS; ch++)
+    setFadeOutTime(ch, milliseconds);
 }
 
 /*---------- Input sensor controls ----------*/
 
-void Tactile::setTouchReleaseThresholds(int touch, int release) {
-  for (int s = 1; s <= NUM_CHANNELS; s++)                // note: external sensor number 1..N
-    setTouchReleaseThresholds(s, touch, release);
+void Tactile::ignoreSensor(int channel, bool ignore) {
+  channel = channelExtern2Intern(channel);
+  _ts->ignoreSensor(channel, ignore);
 }
 
-void Tactile::setTouchReleaseThresholds(int externSensorNumber, int touch, int release) {
-  int sensorNumber = externSensorNumber - 1;
+void Tactile::setMultiTrackMode(boolean on) {
+  _multiTrack = on;
+}
+
+void Tactile::setTouchReleaseThresholds(int channel, int touch, int release) {
+  channel = channelExtern2Intern(channel);
   if (touch > 100)
     touch = 100;
   else if (touch < 1)
@@ -134,27 +168,45 @@ void Tactile::setTouchReleaseThresholds(int externSensorNumber, int touch, int r
     release = touch - 1;
   else if (release < 0)
     release = 0;
-  _touchThreshold[sensorNumber] = touch;
-  _releaseThreshold[sensorNumber] = release;
-  _ts->setTouchReleaseThresholds(sensorNumber, (float)touch, (float)release);
+  _touchThreshold[channel] = touch;
+  _releaseThreshold[channel] = release;
+  _ts->setTouchReleaseThresholds(channel, (float)touch, (float)release);
 }
 
-void Tactile::ignoreSensor(int externSensorNumber, bool ignore) {
-  int sensorNumber = externSensorNumber - 1;
-  _ts->ignoreSensor(sensorNumber, ignore);
+void Tactile::setTouchReleaseThresholds(int touch, int release) {
+  for (int ch = 1; ch <= NUM_CHANNELS; ch++)
+    setTouchReleaseThresholds(ch, touch, release);
+}
+
+void Tactile::setTouchToStop(int channel, boolean on) {
+  channel = channelExtern2Intern(channel);
+  _touchToStop[channel] = on;
+  _ts->setTouchToggleMode(channel, on);
 }
 
 void Tactile::setTouchToStop(boolean on) {
-  _touchToStop = on;
-  _ts->setTouchToggleMode(on);
+  for (int ch = 1; ch <= NUM_CHANNELS; ch++)
+    setTouchToStop(ch, on);
 }
 
-void Tactile::setMultiTrackMode(boolean on) {
-  _multiTrack = on;
+void Tactile::setContinueTrackMode(int channel, boolean on) {
+  channel = channelExtern2Intern(channel);
+  _continueTrack[channel] = on;
 }
 
 void Tactile::setContinueTrackMode(boolean on) {
-  _continueTrack = on;
+  for (int ch = 1; ch <= NUM_CHANNELS; ch++)
+    setContinueTrackMode(ch, on);
+}
+
+void Tactile::setLoopMode(int channel, boolean on) {
+  channel = channelExtern2Intern(channel);
+  _ta->setLoopMode(channel, on);
+}
+
+void Tactile::setLoopMode(boolean on) {
+  for (int ch = 1; ch <= NUM_CHANNELS; ch++)
+    setLoopMode(ch, on);
 }
 
 void Tactile::setInactivityTimeout(int seconds) {
@@ -163,9 +215,9 @@ void Tactile::setInactivityTimeout(int seconds) {
   _restartTimeout = (uint32_t)(seconds * 1000);
 }
 
-void Tactile::setProximityMultiplier(int externSensorNumber, float m) {
-  int sensorNumber = externSensorNumber - 1;
-  _ts->setProximityMultiplier(sensorNumber, m);
+void Tactile::setProximityMultiplier(int channel, float m) {
+  channel = channelExtern2Intern(channel);
+  _ts->setProximityMultiplier(channel, m);
 }
 
 void Tactile::setAveragingStrength(int samples) {
@@ -175,31 +227,36 @@ void Tactile::setAveragingStrength(int samples) {
 /*-------------------- vibration controls --------------------*/
 
 void Tactile::setVibratorType(int channel, VibratorType vibType) {
+  channel = channelExtern2Intern(channel);
   _v->setVibratorType(channel, vibType);
 }
 void Tactile::setVibrationFrequency(int channel, int frequency) {
+  channel = channelExtern2Intern(channel);
   _v->setVibrationFrequency(channel, frequency);
 }
 
 void Tactile::setVibrationIntensity(int channel, int intensityPercent) {
+  channel = channelExtern2Intern(channel);
   _v->setIntensity(intensityPercent);
 }
 void Tactile::setVibrationEnvelope(int channel, const char *name) {
+  channel = channelExtern2Intern(channel);
   _v->setVibrationEnvelope(channel, name);
 }
 void Tactile::setVibrationEnvelopeFile(int channel, const char *fileName) {
+  channel = channelExtern2Intern(channel);
   _v->setVibrationEnvelopeFile(channel, fileName);
 }
 void Tactile::overrideVibrationEnvelopeDuration(int channel, int msec) {
+  channel = channelExtern2Intern(channel);
   _v->overrideVibrationEnvelopeDuration(channel, msec);
 }
 void Tactile::overrideVibrationEnvelopeRepeats(int channel, bool repeat) {
+  channel = channelExtern2Intern(channel);
   _v->overrideVibrationEnvelopeRepeats(channel, repeat);
 }
 void Tactile::useProximityAsIntensity(int channel, bool on) {
-  if (channel < 1 || channel > NUM_CHANNELS)
-    return;
-  channel -= 1; // 1..N external, 0..N-1 internal
+  channel = channelExtern2Intern(channel);
   _proximityControlsIntensity[channel] = on;
   if (on) {
     _proximityControlsSpeed[channel] = false;
@@ -221,9 +278,7 @@ void Tactile::useProximityAsIntensity(int channel, bool on) {
 // So speed factor is: 1 + (speedMultiplierPct/100 * proxPct)
 
 void Tactile::useProximityAsSpeed(int channel, bool on, int multiplierPercent) {
-  if (channel < 1 || channel > NUM_CHANNELS)
-    return;
-  channel -= 1; // 1..N external, 0..N-1 internal
+  channel = channelExtern2Intern(channel);
   if (multiplierPercent > 1000)
     multiplierPercent = 100;
   else if (multiplierPercent < -100)
@@ -257,12 +312,14 @@ Tactile* Tactile::setup() {
   t->_v  = Vibrate::setup(t->_tu);
   
   // Audio initialization
-  t->setTouchReleaseThresholds(95, 65);
-  t->setMultiTrackMode(false);
-  t->setContinueTrackMode(false);
+  for (int c = 1; c <= NUM_CHANNELS; c++) {
+    t->setTouchReleaseThresholds(c, 95, 65);
+    t->setContinueTrackMode(c, false);
+    t->useRandomTracks(c, false);
+    t->useProximityAsVolume(c, false);
+  }
   t->setInactivityTimeout(0);
-  t->setPlayRandomTrackMode(false);
-  t->setProximityAsVolumeMode(false);
+  t->setMultiTrackMode(false);
 
   // Vibration initialization
   for (int c = 1; c <= NUM_CHANNELS; c++) {
@@ -283,10 +340,11 @@ Tactile* Tactile::setup() {
  ----------------------------------------------------------------------*/
     
 void Tactile::_touchLoop() {
+  float proximityValues[NUM_CHANNELS];
   int sensorStatus[NUM_CHANNELS];
   int sensorChanged[NUM_CHANNELS];
 
-  int numChanged = _ts->getTouchStatus(sensorStatus, sensorChanged);
+  int numChanged = _ts->getTouchStatus(proximityValues, sensorStatus, sensorChanged);
 
   int numTouched = 0;
   for (int channel = 0; channel < NUM_CHANNELS; channel++) {
@@ -320,7 +378,7 @@ void Tactile::_touchLoop() {
       if (sensorChanged[channel] == NEW_TOUCH) {
         if (_useAudioOutput[channel]) {
           if (!isPlaying) {
-            if (!_continueTrack)
+            if (!_continueTrack[channel])
               _ta->cancelFades(channel);
             _ta->startTrack(channel);
             _tu->logAction("start track ", channel+1);
@@ -333,6 +391,8 @@ void Tactile::_touchLoop() {
               _tu->logAction("restart track (was paused?) ", channel+1);
             }
           }
+          if (_useProximityAsVolume[channel])
+            _ta->setVolume(channel, proximityValues[channel]);
         }
 
         // Start vibration
@@ -345,13 +405,14 @@ void Tactile::_touchLoop() {
 
         if (_useAudioOutput[channel]) {
           if (isPlaying) {
-            if (_continueTrack) {
+            if (_continueTrack[channel]) {
               _ta->pauseTrack(channel);
               _tu->logAction("pause track ", channel+1);
             } else {
               _ta->stopTrack(channel);
               _tu->logAction("stop track ", channel+1);
             }
+            _ta->setVolume(channel, 0);
           }
           if (_useVibrationOutput[channel]) {
             _v->stop(channel);
@@ -413,18 +474,18 @@ void Tactile::_touchLoop() {
         if (_useAudioOutput[channel]) {
           if (_ta->isPaused(channel)) {
             _ta->resumeTrack(channel);
-            _tu->logAction("resume track ", channel+1);
+            _tu->logAction("Tactile: resume track ", channel+1);
           } else {
             if (!_continueTrack)
               _ta->cancelFades(channel);
             _ta->startTrack(channel);
-            _tu->logAction("start track ", channel+1);
+            _tu->logAction("Tactile: start track ", channel+1);
           }
           _trackCurrentlyPlaying = channel;
         }
         if (_useVibrationOutput[channel]) {
           _v->start(channel);
-          _tu->logAction("start vibrator ", channel+1);
+          _tu->logAction("Tactile: start vibrator ", channel+1);
         }
         break;
       }
@@ -524,10 +585,7 @@ void Tactile::_proximityLoop() {
 void Tactile::loop() {
 
   // Respond to sensor touch/proximity
-  if (_useProximityAsVolume)
-    _proximityLoop();
-  else
-    _touchLoop();
+  _touchLoop();
 
   // Do fade-in/out
   _ta->doTimerTasks();

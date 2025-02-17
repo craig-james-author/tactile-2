@@ -76,8 +76,8 @@ Sensors* Sensors::setup(TeensyUtils *tc) {
  ----------------------------------------------------------------------*/
 
 void Sensors::setTouchReleaseThresholds(float touchThreshold, float releaseThreshold) {
-  for (int s = 0; s < NUM_CHANNELS; s++)
-    setTouchReleaseThresholds(s, touchThreshold, releaseThreshold);
+  for (int ch = 0; ch < NUM_CHANNELS; ch++)
+    setTouchReleaseThresholds(ch, touchThreshold, releaseThreshold);
 }
 
 void Sensors::setTouchReleaseThresholds(int channel, float touchThreshold, float releaseThreshold) {
@@ -110,7 +110,7 @@ void Sensors::ignoreSensor(int channel, bool ignore) {
   _ignoreSensor[channel] = ignore;
 }
 
-void Sensors::setTouchToggleMode(bool on) {
+void Sensors::setTouchToggleMode(int channel, bool on) {
   _touchToggleMode = on;
   _tu->logAction2("Sensors: touchToggleMode: ", on ? 1 : 0);
 }
@@ -120,13 +120,14 @@ void Sensors::setTouchToggleMode(bool on) {
  *   - Array sensorStatus[] is filled with true/false (1/0) indicating if the sensor it touched or not
  */
 
-int Sensors::getTouchStatus(int sensorStatus[], int sensorChanges[]) {
+int Sensors::getTouchStatus(float proximityValues[], int sensorStatus[], int sensorChanges[]) {
 
   int numChanges = 0;
 
   for (int i = 0; i < NUM_CHANNELS; i++) {
     sensorChanges[i] = TOUCH_NO_CHANGE;
     float prox = getProximityPercent(i);
+    proximityValues[i] = prox;
     if (prox >= _touchThreshold[i]) {
       sensorStatus[i] = IS_TOUCHED;
       if (_lastSensorStatus[i] != sensorStatus[i]) {

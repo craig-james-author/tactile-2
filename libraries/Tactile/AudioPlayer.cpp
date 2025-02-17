@@ -56,21 +56,21 @@ AudioPlayer::AudioPlayer(TeensyUtils *tc) {
 AudioPlayer* AudioPlayer::setup(TeensyUtils *tc) {
 
   AudioPlayer* t = new AudioPlayer(tc);
-  t->_fadeInTime          = 0;
-  t->_fadeOutTime         = 0;
-  t->setVolume(100);
-  t->_randomTrackMode     = false;
-  t->_loopMode            = false;
 
-  for (int trackNumber = 0; trackNumber < NUM_CHANNELS; trackNumber++) {
-    t->_targetVolume[trackNumber]          = 100;
-    t->_actualVolume[trackNumber]          = 0;
-    t->_lastStartTime[trackNumber]         = 0;
-    t->_lastStopTime[trackNumber]          = 0;
-    t->_thisFadeInTime[trackNumber]        = 0;
-    t->_thisFadeOutTime[trackNumber]       = 0;
-    t->_lastRandomTrackPlayed[trackNumber] = -1;
-    t->_isPaused[trackNumber]              = false;
+  for (int channel = 0; channel < NUM_CHANNELS; channel++) {
+    t->setVolume(channel, 100);
+    t->_fadeInTime[channel]            = 0;
+    t->_fadeOutTime[channel]           = 0;
+    t->_randomTrackMode[channel]       = false;
+    t->_loopMode[channel]              = false;
+    t->_targetVolume[channel]          = 100;
+    t->_actualVolume[channel]          = 0;
+    t->_lastStartTime[channel]         = 0;
+    t->_lastStopTime[channel]          = 0;
+    t->_thisFadeInTime[channel]        = 0;
+    t->_thisFadeOutTime[channel]       = 0;
+    t->_lastRandomTrackPlayed[channel] = -1;
+    t->_isPaused[channel]              = false;
   }  
 
   // Initialization for the Teensy Audio Shield
@@ -98,65 +98,56 @@ AudioPlayer* AudioPlayer::setup(TeensyUtils *tc) {
  * Tracks
  ----------------------------------------------------------------------*/
 
-const char *AudioPlayer::getTrackName(int trackNum) {
-  if (trackNum < 0 || trackNum > NUM_CHANNELS)
+const char *AudioPlayer::getTrackName(int channel) {
+  if (channel < 0 || channel > NUM_CHANNELS)
     return NULL;
-  return _fm->getFileName(trackNum);
+  return _fm->getFileName(channel);
 }
 
 /*----------------------------------------------------------------------
  * Volume controls
  ----------------------------------------------------------------------*/
 
-void AudioPlayer::_setActualVolume(int trackNum, int percent) {
-  _actualVolume[trackNum] = percent;
+void AudioPlayer::_setActualVolume(int channel, int percent) {
+  _actualVolume[channel] = percent;
   float gain  = (float)percent/100.0;  // Convert percent (0-100) to gain (0-1.0)
-  mixer1.gain(trackNum, gain);
-  mixer2.gain(trackNum, gain);
+  mixer1.gain(channel, gain);
+  mixer2.gain(channel, gain);
 }
 
-void AudioPlayer::setVolume(int trackNum, int percent) {
-  if (trackNum < 0)
-    trackNum = 0;
-  else if (trackNum >= NUM_CHANNELS)
-    trackNum = NUM_CHANNELS - 1;
-  _targetVolume[trackNum] = percent;
-  if (!_fadeInTime)
-    _setActualVolume(trackNum, percent);
+void AudioPlayer::setVolume(int channel, int percent) {
+  _targetVolume[channel] = percent;
+  if (!_fadeInTime[channel])
+    _setActualVolume(channel, percent);
 }
 
-void AudioPlayer::setVolume(int percent) {
-  for (int i = 0; i < NUM_CHANNELS; i++)
-    setVolume(i, percent);
-}
-
-void AudioPlayer::setFadeInTime(int milliseconds) {
-  _fadeInTime = milliseconds;
+void AudioPlayer::setFadeInTime(int channel, int milliseconds) {
+  _fadeInTime[channel] = milliseconds;
   _tu->logAction2("AudioPlayer: setFadeInTime: ", milliseconds);
 }
 
-void AudioPlayer::setFadeOutTime(int milliseconds) {
-  _fadeOutTime = milliseconds;
+void AudioPlayer::setFadeOutTime(int channel, int milliseconds) {
+  _fadeOutTime[channel] = milliseconds;
   _tu->logAction2("AudioPlayer: setFadeOutTime: ", milliseconds);
 }
 
-void AudioPlayer::cancelFades(int trackNumber) {
-  _lastStartTime[trackNumber] = 0;
-  _lastStopTime[trackNumber] = 0;
-  _setActualVolume(trackNumber, 0);
+void AudioPlayer::cancelFades(int channel) {
+  _lastStartTime[channel] = 0;
+  _lastStopTime[channel] = 0;
+  _setActualVolume(channel, 0);
 }
   
 int AudioPlayer::cancelAll() {
   int cancelled = 0;
-  for (int trackNumber = 0; trackNumber < NUM_CHANNELS; trackNumber++) {
-    AudioPlaySdWavPR *player = _getPlayerByTrack(trackNumber);
+  for (int channel = 0; channel < NUM_CHANNELS; channel++) {
+    AudioPlaySdWavPR *player = _getPlayerByTrack(channel);
     if (!player) return 0;
     if (player->isPlaying()) {
       player->stop();
       cancelled++;
     }
-    _lastStartTime[trackNumber] = 0;
-    _lastStopTime[trackNumber] = 0;
+    _lastStartTime[channel] = 0;
+    _lastStopTime[channel] = 0;
   }
   return cancelled;
 }    
@@ -165,74 +156,66 @@ int AudioPlayer::cancelAll() {
  * Play, pause, resume, and stop tracks
  ----------------------------------------------------------------------*/
 
-void AudioPlayer::setPlayRandomTrackMode(bool r) {
-  _randomTrackMode = r;
+void AudioPlayer::useRandomTracks(int channel, bool r) {
+  _randomTrackMode[channel] = r;
 }
 
-void AudioPlayer::setLoopMode(bool on) {
-  _loopMode = on;
+void AudioPlayer::setLoopMode(int channel, bool on) {
+  _loopMode[channel] = on;
 }
 
-AudioPlaySdWavPR *AudioPlayer::_getPlayerByTrack(int trackNumber) {
-  if (trackNumber < 0)
-    trackNumber = 0;
-  else if (trackNumber >= NUM_CHANNELS)
-    trackNumber = NUM_CHANNELS - 1;
-  switch (trackNumber) {
+AudioPlaySdWavPR *AudioPlayer::_getPlayerByTrack(int channel) {
+  switch (channel) {
   case 0: return &playSdWav1;
   case 1: return &playSdWav2;
   case 2: return &playSdWav3;
   case 3: return &playSdWav4;
   }
-  _tu->logAction("AudioPlayer: Invalid trackNumber: ", trackNumber);
+  _tu->logAction("AudioPlayer: Invalid channel: ", channel);
   return NULL;  // to keep compiler happy, never happens
 }
 
-void AudioPlayer::startTrack(int trackNumber) {
-  if (trackNumber < 0)
-    trackNumber = 0;
-  else if (trackNumber >= NUM_CHANNELS)
-    trackNumber = NUM_CHANNELS - 1;
-  if (_randomTrackMode)
-    _startRandomTrack(trackNumber);
+void AudioPlayer::startTrack(int channel) {
+  if (_randomTrackMode[channel])
+    _startRandomTrack(channel);
   else
-    _startTrack(trackNumber);
-  if (_fadeInTime == 0)
-    _setActualVolume(trackNumber, _targetVolume[trackNumber]);
+    _startTrack(channel);
+  if (_fadeInTime[channel] == 0)
+    _setActualVolume(channel, _targetVolume[channel]);
   else
-    _thisFadeInTime[trackNumber] = _calculateFadeTime(trackNumber, true);
-  _lastStartTime[trackNumber] = millis();
-  _lastStopTime[trackNumber] = 0;
+    _thisFadeInTime[channel] = _calculateFadeTime(channel, true);
+  _lastStartTime[channel] = millis();
+  _lastStopTime[channel] = 0;
 }
 
-void AudioPlayer::_startTrack(int trackNumber) {
-  const char *trackName = _fm->getFileName(trackNumber);
+void AudioPlayer::_startTrack(int channel) {
+  const char *trackName = _fm->getFileName(channel);
   if (!trackName) {
-    _tu->logAction("Can't find that track: ", trackNumber);
+    _tu->logAction("Can't find that track: ", channel);
     return;
   }
-  AudioPlaySdWavPR *player = _getPlayerByTrack(trackNumber);
+  AudioPlaySdWavPR *player = _getPlayerByTrack(channel);
   if (!player) return;
   player->play(trackName);
   if (_tu->getLogLevel() > 1) {
     Serial.print("AudioPlayer: start track ");
-    Serial.print(trackNumber);
+    Serial.print(channel);
     Serial.print(", ");
     Serial.println(trackName);
   }
 }
 
-void AudioPlayer::_startRandomTrack(int trackNumber) {
+void AudioPlayer::_startRandomTrack(int channel) {
   // Selects a track randomly from directory EN, where "N"
   // is the track number (e.g. E0, E1, ...). However, it
   // tries to avoid replaying the last-played "random" track.
 
-  _tu->logAction2("AudioPlayer: startRandomTrack ", trackNumber);
+  _tu->logAction2("AudioPlayer: startRandomTrack ", channel);
 
-  AudioPlaySdWavPR *player = _getPlayerByTrack(trackNumber);
+  AudioPlaySdWavPR *player = _getPlayerByTrack(channel);
   if (!player) return;
 
-  int numFiles = _fm->getNumFiles(trackNumber);
+  int numFiles = _fm->getNumFiles(channel);
   _tu->logAction2("AudioPlayer: Files in directory: ", numFiles);
   if (numFiles < 1) return;
 
@@ -240,20 +223,20 @@ void AudioPlayer::_startRandomTrack(int trackNumber) {
   int tries = 0;
   while (tries < 30) {
     r = random(numFiles);
-    if (r != _lastRandomTrackPlayed[trackNumber])       // avoid last track played
+    if (r != _lastRandomTrackPlayed[channel])       // avoid last track played
       break;
     tries++;
   }
-  _lastRandomTrackPlayed[trackNumber] = r;
+  _lastRandomTrackPlayed[channel] = r;
   _tu->logAction2("AudioPlayer: Random track selected: ", r);
-  const char *fileName = _fm->getFileName(trackNumber, r);
+  const char *fileName = _fm->getFileName(channel, r);
   if (!fileName) {
-    _tu->logAction2("Error, couldn't get random filename (this shouldn't happen) for track ", trackNumber);
+    _tu->logAction2("Error, couldn't get random filename (this shouldn't happen) for track ", channel);
     return;
   }
 
   char filePath[MAX_FILE_NAME+5] = "/Ex/";
-  filePath[2] = '1' + trackNumber;  // i.e. /E1/, /E2/, ...
+  filePath[2] = '1' + channel;  // i.e. /E1/, /E2/, ...
   strcpy(filePath+4, fileName);
   _tu->log2(filePath);
 
@@ -263,32 +246,32 @@ void AudioPlayer::_startRandomTrack(int trackNumber) {
     Serial.print("AudioPlayer: start random track: ");
     Serial.print(filePath);
     Serial.print(" (");
-    Serial.print(trackNumber);
+    Serial.print(channel);
     Serial.print(", ");
     Serial.print(r);
     Serial.println(")");
   }
 }
 
-void AudioPlayer::stopTrack(int trackNumber) {
-  AudioPlaySdWavPR *player = _getPlayerByTrack(trackNumber);
+void AudioPlayer::stopTrack(int channel) {
+  AudioPlaySdWavPR *player = _getPlayerByTrack(channel);
   if (!player) return;
-  if (_fadeOutTime == 0) {
+  if (_fadeOutTime[channel] == 0) {
     player->stop();
-    _setActualVolume(trackNumber, 0);
+    _setActualVolume(channel, 0);
   } else {
     // If fade-out enabled, don't actually stop the track. That will happen
     // when fade-out finishes (see _doFadeInOut(), below).
-    _thisFadeOutTime[trackNumber] = _calculateFadeTime(trackNumber, false);
+    _thisFadeOutTime[channel] = _calculateFadeTime(channel, false);
   }
 
-  _tu->logAction2("AudioPlayer: stop ", trackNumber);
-  _lastStopTime[trackNumber] = millis();  // for calculating fade-out
-  _lastStartTime[trackNumber] = 0;
+  _tu->logAction2("AudioPlayer: stop ", channel);
+  _lastStopTime[channel] = millis();  // for calculating fade-out
+  _lastStartTime[channel] = 0;
 }  
 
-bool AudioPlayer::isPlaying(int trackNumber) {
-  AudioPlaySdWavPR *player = _getPlayerByTrack(trackNumber);
+bool AudioPlayer::isPlaying(int channel) {
+  AudioPlaySdWavPR *player = _getPlayerByTrack(channel);
   if (!player) return 0;
   return player->isPlaying();
 }
@@ -297,83 +280,83 @@ bool AudioPlayer::isPlaying(int trackNumber) {
  * Pause and Resume tracks
  ----------------------------------------------------------------------*/
 
-void AudioPlayer::pauseTrack(int trackNumber) {
-  AudioPlaySdWavPR *player = _getPlayerByTrack(trackNumber);
+void AudioPlayer::pauseTrack(int channel) {
+  AudioPlaySdWavPR *player = _getPlayerByTrack(channel);
   if (!player) return; 
-  if (_fadeOutTime == 0) {
+  if (_fadeOutTime[channel] == 0) {
     player->pause();
-    _setActualVolume(trackNumber, 0);
+    _setActualVolume(channel, 0);
   } else {
     // If fade-out enabled, don't actually pause the track. That will happen
     // when fade-out finishes (see _doFadeInOut(), below).
-    _thisFadeOutTime[trackNumber] = _calculateFadeTime(trackNumber, false);
+    _thisFadeOutTime[channel] = _calculateFadeTime(channel, false);
   }
-  _isPaused[trackNumber] = true;
-  _lastStartTime[trackNumber] = 0;
-  _lastStopTime[trackNumber] = millis();     // for calculating fade-out
-  _tu->logAction2("AudioPlayer: pause ", trackNumber);
+  _isPaused[channel] = true;
+  _lastStartTime[channel] = 0;
+  _lastStopTime[channel] = millis();     // for calculating fade-out
+  _tu->logAction2("AudioPlayer: pause ", channel);
 }
 
-void AudioPlayer::resumeTrack(int trackNumber) {
+void AudioPlayer::resumeTrack(int channel) {
 
-  AudioPlaySdWavPR *player = _getPlayerByTrack(trackNumber);
+  AudioPlaySdWavPR *player = _getPlayerByTrack(channel);
   if (!player) return;
 
   player->resume();
-  _isPaused[trackNumber] = false;
-  if (_fadeInTime == 0)
-    _setActualVolume(trackNumber, _targetVolume[trackNumber]);
+  _isPaused[channel] = false;
+  if (_fadeInTime[channel] == 0)
+    _setActualVolume(channel, _targetVolume[channel]);
   else
-    _thisFadeInTime[trackNumber] = _calculateFadeTime(trackNumber, true);
+    _thisFadeInTime[channel] = _calculateFadeTime(channel, true);
 
-  _lastStartTime[trackNumber] = millis();
-  _lastStopTime[trackNumber] = 0;
+  _lastStartTime[channel] = millis();
+  _lastStopTime[channel] = 0;
 
-  _tu->logAction2("AudioPlayer: resume ", trackNumber);
+  _tu->logAction2("AudioPlayer: resume ", channel);
 }
 
-bool AudioPlayer::isPaused(int trackNumber) {
-  return _isPaused[trackNumber];
+bool AudioPlayer::isPaused(int channel) {
+  return _isPaused[channel];
 }
 
-int AudioPlayer::_calculateFadeTime(int trackNumber, bool goingUp) {
+int AudioPlayer::_calculateFadeTime(int channel, bool goingUp) {
   int deltaVolume;
   int fadeTime;
   if (goingUp) {
-    deltaVolume = 100 - _actualVolume[trackNumber];
-    fadeTime = _fadeInTime;
+    deltaVolume = 100 - _actualVolume[channel];
+    fadeTime = _fadeInTime[channel];
   } else {
-    deltaVolume = _actualVolume[trackNumber];
-    fadeTime = _fadeOutTime;
+    deltaVolume = _actualVolume[channel];
+    fadeTime = _fadeOutTime[channel];
   }
   int time = (int)(0.499 + (float)fadeTime * (float)deltaVolume/100.0);
   return time;
 }
 
-void AudioPlayer::_doFadeInOut(int trackNumber)
+void AudioPlayer::_doFadeInOut(int channel)
 {
-  int targetVol = _targetVolume[trackNumber];
-  int actualVol = _actualVolume[trackNumber];
+  int targetVol = _targetVolume[channel];
+  int actualVol = _actualVolume[channel];
 
   // Do fade-in? When fade-in is enabled, tracks are started at zero volume,
   // so they're initially in the "is playing" state even though the volume
   // is zero.
 
-  if (_lastStartTime[trackNumber] > 0
-      && _fadeInTime != 0
+  if (_lastStartTime[channel] > 0
+      && _fadeInTime[channel] != 0
       && actualVol < targetVol
-      && isPlaying(trackNumber)) {
+      && isPlaying(channel)) {
 
     // Calculate the target volume based on how much elapsed time since the track started playing.
-    unsigned long elapsedTime = millis() - _lastStartTime[trackNumber];
+    unsigned long elapsedTime = millis() - _lastStartTime[channel];
 
     // But if _thisFadeInTime is different that _fadeInTime, it means we started in the middle
     // of a fade-out (i.e. the volume wasn't zero yet), so push the elapsed time forward by
     // difference of the two.
-    if (_fadeInTime != _thisFadeInTime[trackNumber])
-      elapsedTime += _fadeInTime - _thisFadeInTime[trackNumber]; // push elapsed time forward
+    if (_fadeInTime[channel] != _thisFadeInTime[channel])
+      elapsedTime += _fadeInTime[channel] - _thisFadeInTime[channel]; // push elapsed time forward
     
-    int newVolumePercent = int((float)targetVol*(float)elapsedTime/(float)_fadeInTime);
+    int newVolumePercent = int((float)targetVol*(float)elapsedTime/(float)_fadeInTime[channel]);
     
     // Time to increase volume?
     if (newVolumePercent != actualVol) {
@@ -381,7 +364,7 @@ void AudioPlayer::_doFadeInOut(int trackNumber)
 	newVolumePercent = targetVol;
       }
       _tu->logAction2("AudioPlayer: Fade-in, set volume: ", newVolumePercent);
-      _setActualVolume(trackNumber, newVolumePercent);
+      _setActualVolume(channel, newVolumePercent);
     }
   }
 
@@ -389,21 +372,21 @@ void AudioPlayer::_doFadeInOut(int trackNumber)
   // state but still be actually playing. Only when the target volume gets to zero
   // is the track actually stopped.
 
-  else if (_fadeOutTime != 0                            // fade-out is enabled
-           && _lastStopTime[trackNumber] > 0            // the track is stopped or paused...
-           && isPlaying(trackNumber)                    // ... but the track is still playing
-	   && actualVol > 0) {                          // and volume hasn't reached zero yet
+  else if (_fadeOutTime[channel] != 0               // fade-out is enabled
+           && _lastStopTime[channel] > 0            // the track is stopped or paused...
+           && isPlaying(channel)                    // ... but the track is still playing
+	   && actualVol > 0) {                      // and volume hasn't reached zero yet
 
     // Calculate the target volume based on how much elapsed time since the track stopped playing.
-    unsigned long elapsedTime = millis() - _lastStopTime[trackNumber];
+    unsigned long elapsedTime = millis() - _lastStopTime[channel];
 
     // But if _thisFadeOutTime is different than _fadeOutTime, it means we started with volume less
     // than 100%, so push elapsed time forward by the difference of the two.
-    if (_fadeOutTime != _thisFadeOutTime[trackNumber]) {
-      elapsedTime += _fadeOutTime - _thisFadeOutTime[trackNumber];
+    if (_fadeOutTime[channel] != _thisFadeOutTime[channel]) {
+      elapsedTime += _fadeOutTime[channel] - _thisFadeOutTime[channel];
     }
 
-    int newVolumePercent = targetVol - int((float)(targetVol)*(float)elapsedTime/(float)_fadeOutTime);
+    int newVolumePercent = targetVol - int((float)(targetVol)*(float)elapsedTime/(float)_fadeOutTime[channel]);
 
     if (newVolumePercent != actualVol) {
 
@@ -411,22 +394,22 @@ void AudioPlayer::_doFadeInOut(int trackNumber)
       // _tu->logAction2("AudioPlayer: Fade-out, set volume: ", newVolumePercent);
       if (newVolumePercent < 0)
 	newVolumePercent = 0;
-      _setActualVolume(trackNumber, newVolumePercent);
+      _setActualVolume(channel, newVolumePercent);
 
       // If fade-out reached zero volume, actually stop or pause the track.
       // Note that _isPaused is true as soon as pauseTrack()
       // is called, but the track keeps playing until this fade-out finishes.
       if (newVolumePercent == 0) {
-        AudioPlaySdWavPR *player = _getPlayerByTrack(trackNumber);
+        AudioPlaySdWavPR *player = _getPlayerByTrack(channel);
         if (!player) return;
-	if (isPaused(trackNumber)) {
+	if (isPaused(channel)) {
           player->pause();
-	  _tu->logAction2("AudioPlayer: fade-out done, track paused: ", trackNumber);
+	  _tu->logAction2("AudioPlayer: fade-out done, track paused: ", channel);
 	} else {
 	  player->stop();
-          _tu->logAction2("AudioPlayer: fade-out done, track stopped: ", trackNumber);
+          _tu->logAction2("AudioPlayer: fade-out done, track stopped: ", channel);
 	}
-        _lastStopTime[trackNumber] = 0;
+        _lastStopTime[channel] = 0;
       }
     }
   }
@@ -434,24 +417,24 @@ void AudioPlayer::_doFadeInOut(int trackNumber)
 
 void AudioPlayer::doTimerTasks()
 {
-  for (int trackNumber = 0; trackNumber < NUM_CHANNELS; trackNumber++)
-    _doFadeInOut(trackNumber);
+  for (int channel = 0; channel < NUM_CHANNELS; channel++)
+    _doFadeInOut(channel);
 
   // If a track that was playing reached the end of the track, change its status.
-  for (int trackNumber = 0; trackNumber < NUM_CHANNELS; trackNumber++) {
-    if (_lastStartTime[trackNumber] > 0) {
-      AudioPlaySdWavPR *player = _getPlayerByTrack(trackNumber);
+  for (int channel = 0; channel < NUM_CHANNELS; channel++) {
+    if (_lastStartTime[channel] > 0) {
+      AudioPlaySdWavPR *player = _getPlayerByTrack(channel);
       if (!player) return;
       uint32_t now = millis();
-      if (now - _lastStartTime[trackNumber] > 50) {  // Player doesn't reliably report isPlaying() for a
+      if (now - _lastStartTime[channel] > 50) {  // Player doesn't reliably report isPlaying() for a
         if (!player->isPlaying()) {                  // few msec, so if it just started playing, skip this.
           if (_loopMode) {
-            startTrack(trackNumber);
-            _tu->logAction2("end of track, looping: ", trackNumber);
+            startTrack(channel);
+            _tu->logAction2("end of track, looping: ", channel);
           } else {
-            _lastStartTime[trackNumber] = 0;
-            _lastStopTime[trackNumber] = now;
-            _tu->logAction2("end of track ", trackNumber);
+            _lastStartTime[channel] = 0;
+            _lastStopTime[channel] = now;
+            _tu->logAction2("end of track ", channel);
           }
         }
       }

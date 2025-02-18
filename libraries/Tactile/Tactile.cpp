@@ -280,7 +280,7 @@ void Tactile::useProximityAsIntensity(int channel, bool on) {
 void Tactile::useProximityAsSpeed(int channel, bool on, int multiplierPercent) {
   channel = channelExtern2Intern(channel);
   if (multiplierPercent > 1000)
-    multiplierPercent = 100;
+    multiplierPercent = 1000;
   else if (multiplierPercent < -100)
     multiplierPercent = -100;
   if (on) {
@@ -329,14 +329,31 @@ Tactile* Tactile::setup() {
 
   // Bookkeeping
   t->_ledCycle = 0;
-  t->_trackCurrentlyPlaying = -1;
   t->_lastActionTime = millis();
+  for (int c = 0; c < NUM_CHANNELS; c++) {
+    t->_isPlaying[c] = false;
+  }
   
   return t;
 }
 
 /*----------------------------------------------------------------------
  * TOUCH-MODE LOOP
+ *
+ * MULTI-TRACK MODE. Simple: if a sensor is touched, start playing the
+ * track; if it's released, stop playing. Multiple tracks can go at
+ * the same time.
+ *
+ * SINGLE-TRACK MODE. This is, surprisingly, a bit more complicated.
+ * 
+ * When a sensor is touched, play that track if nothing is already
+ * playing, and as long as the sensor is still touched, keep playing.
+ *
+ * When a sensor is released, it's more complicated.
+ *   - If no other sensor is being touched, just stop the track playing.
+ *   - If one or more other sensors are being touched as this one
+ *     is released, select the lowest, and consider it a "new touch",
+ *     that is, start that track.
  ----------------------------------------------------------------------*/
     
 void Tactile::_touchLoop() {
@@ -359,25 +376,79 @@ void Tactile::_touchLoop() {
   else
     _tu->turnLedOff();
 
-  if (numChanged == 0)
-    return;
+  // Which channels are currently playing?
+  // _isPlaying[] tracks when a channel is playing, but the track may
+  // have finished. The && construct below is efficient because we
+  // don't check the more costly _ta->isPlaying (which actually queries
+  // the device) for channels that we know aren't; only if they might be.
+  for (int channel = 0; channel < NUM_CHANNELS; channel++) {
+    if (_useAudioOutput[channel]) {
+      _isPlaying[channel] = _isPlaying[channel] && (_ta->isPlaying(channel) || _v->isPlaying(channel));
+    }
+  }
 
-  // MULTI-TRACK MODE. Simple: if a sensor is touched, start playing the
-  // track; if it's released, stop playing. Multiple tracks can go at
-  // the same time.
+  // Process releases first (makes bookkeeping easier for single-track mode).
+  for (int channel = 0; channel < NUM_CHANNELS; channel++) {
 
-  if (_multiTrack) {
-    for (int channel = 0; channel < NUM_CHANNELS; channel++) {
+    if (sensorChanged[channel] == NEW_RELEASE) {
 
-      int isPlaying = false;
+      // Stop audio
       if (_useAudioOutput[channel]) {
-        isPlaying = _ta->isPlaying(channel);
+        if (_isPlaying[channel]) {
+          if (_continueTrack[channel]) {
+            _ta->pauseTrack(channel);
+            _tu->logAction("pause track ", channel+1);
+          } else {
+            _ta->stopTrack(channel);
+            _tu->logAction("stop track ", channel+1);
+          }
+          _isPlaying[channel] = false;
+        }
       }
 
-      // Start or resume audio
-      if (sensorChanged[channel] == NEW_TOUCH) {
+      // Stop vibration
+      if (_useVibrationOutput[channel]) {
+        _v->stop(channel);
+        _tu->logAction("stop vibrator ", channel+1);
+      }
+    }
+  }
+
+  // Now that we've processed releases, are there any still playing?
+  // Need to know this for single-track mode.
+  bool trackCurrentlyPlaying = false;
+  for (int channel = 0; channel < NUM_CHANNELS; channel++) {
+    trackCurrentlyPlaying |= _isPlaying[channel];
+  }
+  if (numChanged > 0) {
+    Serial.print("Playing:");
+    Serial.print(_isPlaying[0]);
+    Serial.print(_isPlaying[1]);
+    Serial.print(_isPlaying[2]);
+    Serial.print(_isPlaying[3]);
+    Serial.print(", trackCurrentlyPlaying: ");
+    Serial.println(trackCurrentlyPlaying);
+  }
+
+
+  // If multi-track, or if nothing is currently playing, process
+  // the NEW_TOUCH events. (If single track and something is
+  // playing, ignore NEW_TOUCH events.)
+
+  if (_multiTrack | !trackCurrentlyPlaying) {
+
+    for (int channel = 0; channel < NUM_CHANNELS; channel++) {
+
+      // For multi-track, a "Touch" is simple a new release.
+      // For single-track, it can also include an existing touch if the
+      // track isn't playing (i.e. the new touch came while another track
+      // was playing).
+      if (sensorChanged[channel] == NEW_TOUCH
+          || (!_multiTrack && (sensorStatus[channel] == IS_TOUCHED && !_isPlaying[channel]))) {
+
+        // Start or resume audio
         if (_useAudioOutput[channel]) {
-          if (!isPlaying) {
+          if (!_isPlaying[channel]) {
             if (!_continueTrack[channel])
               _ta->cancelFades(channel);
             _ta->startTrack(channel);
@@ -391,8 +462,7 @@ void Tactile::_touchLoop() {
               _tu->logAction("restart track (was paused?) ", channel+1);
             }
           }
-          if (_useProximityAsVolume[channel])
-            _ta->setVolume(channel, proximityValues[channel]);
+          _isPlaying[channel] = true;
         }
 
         // Start vibration
@@ -400,188 +470,35 @@ void Tactile::_touchLoop() {
           _v->start(channel);
           _tu->logAction("start vibrator ", channel+1);
         }
-      }
-      else if (sensorChanged[channel] == NEW_RELEASE) {
 
-        if (_useAudioOutput[channel]) {
-          if (isPlaying) {
-            if (_continueTrack[channel]) {
-              _ta->pauseTrack(channel);
-              _tu->logAction("pause track ", channel+1);
-            } else {
-              _ta->stopTrack(channel);
-              _tu->logAction("stop track ", channel+1);
-            }
-            _ta->setVolume(channel, 0);
-          }
-          if (_useVibrationOutput[channel]) {
-            _v->stop(channel);
-            _tu->logAction("stop vibrator ", channel+1);
-          }
-        }
+        // If single-track mode, stop at the first NEW_TOUCH
+        if (!_multiTrack)
+          break;
       }
     }
   }
 
-  // SINGLE-TRACK MODE. This is, surprisingly, a bit more complicated.
-  // 
-  // When a sensor is touched, play that track if nothing is already
-  // playing, and as long as the sensor is still touched, keep playing.
-  //
-  // When a sensor is released, it's more complicated.
-  //   - If no other sensor is being touched, just stop the track playing.
-  //   - If one or more other sensors are being touched as this one
-  //     is released, select the lowest, and consider it a "new touch",
-  //     that is, start that track.
-  
-  else {
+  for (int channel = 0; channel < NUM_CHANNELS; channel++) {
 
-    // If the sensor for the track currently playing is still touched, keep playing (i.e. do nothing).
-    if (_trackCurrentlyPlaying >= 0
-        && sensorStatus[_trackCurrentlyPlaying] == IS_TOUCHED) {
-      return;
-    }      
-
-    // If there's a release event, stop or pause that track.
-    if (_trackCurrentlyPlaying >= 0
-        && sensorChanged[_trackCurrentlyPlaying] == NEW_RELEASE) {
-      if (_useAudioOutput[_trackCurrentlyPlaying]) {
-        if (_continueTrack) {
-          _ta->pauseTrack(_trackCurrentlyPlaying);
-          _tu->logAction("pause track ", _trackCurrentlyPlaying+1);
-        } else {
-          _ta->stopTrack(_trackCurrentlyPlaying);
-          _tu->logAction("stop track ", _trackCurrentlyPlaying+1);
-        }
-      }
-      if (_useVibrationOutput[_trackCurrentlyPlaying]) {
-        _v->stop(_trackCurrentlyPlaying);
-        _tu->logAction("stop vibrator ", _trackCurrentlyPlaying+1);
-      }
-      _trackCurrentlyPlaying = -1;
+    // Proximity-as-volume for audio
+    if (_isPlaying[channel] && _useAudioOutput[channel] && _useProximityAsVolume[channel]) {
+      _ta->setVolume(channel, proximityValues[channel]);
     }
 
-    // Is one or more other sensor being touched? The track for the lowest-numbered
-    // touched sensor is played (whether it's a new touch or an ongoing touch
-    // that started before the last release).
-
-    for (int channel = 0; ; channel++) {
-      if (channel >= NUM_CHANNELS) {
-        _trackCurrentlyPlaying = -1;    // no other sensors are being touched, nothing is playing
-        break;
+    if (_v->isPlaying(channel) && _useVibrationOutput[channel]) {
+      // Proximity-as-speed for vibration: adjust speed
+      if (_proximityControlsSpeed[channel]) {
+        int multiplier = (int)(0.499 + (float)_speedMultiplierPercent[channel]/100.0 * proximityValues[channel]);
+        _v->setSpeedMultiplier(channel, multiplier);
       }
-      if (sensorStatus[channel] == IS_TOUCHED) {
-        if (_useAudioOutput[channel]) {
-          if (_ta->isPaused(channel)) {
-            _ta->resumeTrack(channel);
-            _tu->logAction("Tactile: resume track ", channel+1);
-          } else {
-            if (!_continueTrack)
-              _ta->cancelFades(channel);
-            _ta->startTrack(channel);
-            _tu->logAction("Tactile: start track ", channel+1);
-          }
-          _trackCurrentlyPlaying = channel;
-        }
-        if (_useVibrationOutput[channel]) {
-          _v->start(channel);
-          _tu->logAction("Tactile: start vibrator ", channel+1);
-        }
-        break;
+      // Proximity-as-intensity for vibration: adjust intensity
+      else if (_proximityControlsIntensity[channel]) {
+        _v->setIntensity(channel, proximityValues[channel]);
       }
     }
   }
 }
     
-/*----------------------------------------------------------------------
-* PROXIMITY LOOP: When touch proximity controls the volume.
-----------------------------------------------------------------------*/
-
-void Tactile::_proximityLoop() {
-  float sensorValues[NUM_CHANNELS];
-  float maxSensorValue = 0.0;
-  int   maxSensorNumber = -1;
-
-  for (int channel = 0; channel < NUM_CHANNELS; channel++) {
-    sensorValues[channel] = _ts->getProximityPercent(channel);
-    if (sensorValues[channel] > maxSensorValue) {
-      maxSensorValue = sensorValues[channel];
-      maxSensorNumber = channel;
-    }
-  }
-
-  // Set the LED brightness proportional to whichever sensor has the highest value
-  int led_percent = int(maxSensorValue);
-  if (_ledCycle < led_percent)
-    _tu->turnLedOn();
-  else
-    _tu->turnLedOff();
-  _ledCycle++;
-
-  // Log sensor values (once every 100 loops)
-  if (_ledCycle > 99) {
-    _ledCycle = 0;
-  }
-
-  for (int channel = 0; channel < NUM_CHANNELS; channel++) {
-    if (_multiTrack || channel == maxSensorNumber) {
-
-      float sensorValue = sensorValues[channel];
-
-      /* Audio: start/stop and control volume */
-      if (_useAudioOutput[channel]) {
-        int playing = _ta->isPlaying(channel) && !_ta->isPaused(channel);
-        if (sensorValue > _touchThreshold[channel]) {
-          if (!playing) {
-            if (_ta->isPaused(channel)) {
-              _ta->resumeTrack(channel);
-              _tu->logAction("resume ", channel+1);
-            } else {
-              _ta->startTrack(channel);
-              _tu->logAction("play ", channel+1);
-            }
-          }
-          _ta->setVolume(channel, sensorValue);
-          _lastActionTime = millis();
-        } else if (sensorValue < _releaseThreshold[channel]) {
-          if (playing) {
-            if (_continueTrack) {
-              _ta->pauseTrack(channel);
-              _tu->logAction("pause ", channel+1);
-            } else {
-              _ta->stopTrack(channel);
-              _tu->logAction("stop ", channel+1);
-            }
-            _ta->setVolume(channel, 0);
-            _lastActionTime = millis();
-          }
-        }
-      }
-
-      // Vibration: start/stop and control intensity OR control speed.
-      if (_useVibrationOutput[channel]) {
-        if (sensorValue > _touchThreshold[channel]) {
-          if (_proximityControlsSpeed[channel]) {
-            int multiplier = (int)(0.499 + (float)_speedMultiplierPercent[channel]/100.0 * (float)sensorValue);
-            _v->setSpeedMultiplier(channel, multiplier);
-          } else if (_proximityControlsIntensity[channel]) {
-            _v->setIntensity(channel, sensorValue);
-          }
-          if (!_v->isPlaying(channel))
-            _v->start(channel);
-        }
-        if (sensorValue < _releaseThreshold[channel]) {
-          if (_v->isPlaying(channel)) {
-            _v->stop(channel);
-            _tu->logAction("stop vibrator ", channel+1);
-          }
-        }
-      }
-
-    }
-  }
-}
-
 void Tactile::loop() {
 
   // Respond to sensor touch/proximity

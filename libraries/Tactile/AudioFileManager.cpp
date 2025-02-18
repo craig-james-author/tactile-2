@@ -142,10 +142,10 @@ int AudioFileManager::_readDirIntoStringArray(File *dir, int subDirNum)
       if (strlen(tmpNames[fileNum]) > 0 && (strlen(minName) == 0 || strcmp(tmpNames[fileNum], minName) < 0)) {
         strcpy(minName, tmpNames[fileNum]);
         minNameIndex = fileNum;
-        Serial.print("AudioFileManager: minName: ");
-        Serial.print(minName);
-        Serial.print(", ");
-        Serial.println(fileNum);
+        // Serial.print("AudioFileManager: minName: ");
+        // Serial.print(minName);
+        // Serial.print(", ");
+        // Serial.println(fileNum);
       }
     }
 

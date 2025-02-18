@@ -97,6 +97,7 @@ class Tactile
   AudioFileManager *_fm;
   Vibrate          *_v;
 
+  // Options set via API calls
   bool     _useAudioOutput[NUM_CHANNELS];
   bool     _useVibrationOutput[NUM_CHANNELS];
   bool     _useTouchInput[NUM_CHANNELS];
@@ -110,9 +111,11 @@ class Tactile
   bool     _proximityControlsSpeed[NUM_CHANNELS];
   int      _speedMultiplierPercent[NUM_CHANNELS];
   bool     _multiTrack;
+
+  // Bookkeeping while playing
+  bool     _isPlaying[NUM_CHANNELS];
   uint32_t _restartTimeout;
   uint32_t _lastActionTime;
-  int      _trackCurrentlyPlaying;
   int      _ledCycle;
   
   void _touchLoop();

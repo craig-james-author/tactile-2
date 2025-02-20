@@ -1,6 +1,6 @@
 /* -*-C-*-
 +======================================================================
-| Copyright (c) 2022, Craig A. James
+| Copyright (c) 2025, Craig A. James
 |
 | This file is part of of the "Tactile" library.
 |

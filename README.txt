@@ -37,7 +37,7 @@ The file
 is a "template" and also has a detailed explanation of every option.
 
 ---------------------------------------------------------------------------
-Copyright (c) 2022, Craig A. James
+Copyright (c) 2022-2025, Craig A. James
 
 This file is part of of the "Tactile" library.
 

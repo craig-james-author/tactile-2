@@ -382,9 +382,10 @@ void Tactile::_touchLoop() {
   // don't check the more costly _ta->isPlaying (which actually queries
   // the device) for channels that we know aren't; only if they might be.
   for (int channel = 0; channel < NUM_CHANNELS; channel++) {
-    if (_useAudioOutput[channel]) {
-      _isPlaying[channel] = _isPlaying[channel] && (_ta->isPlaying(channel) || _v->isPlaying(channel));
-    }
+    _isPlaying[channel] =
+      _isPlaying[channel]
+      && (   (_useAudioOutput[channel]     && _ta->isPlaying(channel))
+          || (_useVibrationOutput[channel] && _v->isPlaying(channel)));
   }
 
   // Process releases first (makes bookkeeping easier for single-track mode).
@@ -396,21 +397,22 @@ void Tactile::_touchLoop() {
       if (_useAudioOutput[channel]) {
         if (_isPlaying[channel]) {
           if (_continueTrack[channel]) {
+            _tu->logAction("pause audio ", channel+1);
             _ta->pauseTrack(channel);
-            _tu->logAction("pause track ", channel+1);
           } else {
+            _tu->logAction("stop audio ", channel+1);
             _ta->stopTrack(channel);
-            _tu->logAction("stop track ", channel+1);
           }
-          _isPlaying[channel] = false;
         }
       }
 
       // Stop vibration
       if (_useVibrationOutput[channel]) {
-        _v->stop(channel);
         _tu->logAction("stop vibrator ", channel+1);
+        _v->stop(channel);
       }
+
+      _isPlaying[channel] = false;
     }
   }
 

@@ -38,10 +38,6 @@
 #include <Arduino.h>
 #include "Tactile.h"
 
-void Tactile::setLogLevel(int level) {
-  _tu->setLogLevel(level);
-}
-
 static int channelExtern2Intern(int channel) {
   channel -= 1;
   if (channel < 0) return 0;
@@ -305,8 +301,6 @@ Tactile* Tactile::setup() {
   }
 
   t->_tu = TeensyUtils::setup();
-  t->_tu->setLogLevel(1);
-
   t->_ts = Sensors::setup(t->_tu);
   t->_ta = AudioPlayer::setup(t->_tu);
   t->_v  = Vibrate::setup(t->_tu);
@@ -418,26 +412,12 @@ void Tactile::_touchLoop() {
 
   // Now that we've processed releases, are there any still playing?
   // Need to know this for single-track mode.
-  bool trackCurrentlyPlaying = false;
+  bool somethingIsPlaying = false;
   for (int channel = 0; channel < NUM_CHANNELS; channel++) {
-    trackCurrentlyPlaying |= _isPlaying[channel];
-  }
-  if (numChanged > 0) {
-    Serial.print("Playing:");
-    Serial.print(_isPlaying[0]);
-    Serial.print(_isPlaying[1]);
-    Serial.print(_isPlaying[2]);
-    Serial.print(_isPlaying[3]);
-    Serial.print(", trackCurrentlyPlaying: ");
-    Serial.println(trackCurrentlyPlaying);
+    somethingIsPlaying |= _isPlaying[channel];
   }
 
-
-  // If multi-track, or if nothing is currently playing, process
-  // the NEW_TOUCH events. (If single track and something is
-  // playing, ignore NEW_TOUCH events.)
-
-  if (_multiTrack | !trackCurrentlyPlaying) {
+  if (_multiTrack | !somethingIsPlaying) {
 
     for (int channel = 0; channel < NUM_CHANNELS; channel++) {
 
@@ -454,14 +434,14 @@ void Tactile::_touchLoop() {
             if (!_continueTrack[channel])
               _ta->cancelFades(channel);
             _ta->startTrack(channel);
-            _tu->logAction("start track ", channel+1);
+            _tu->logAction("start audio track ", channel+1);
           } else {
             if (_ta->isPaused(channel)) {
               _ta->resumeTrack(channel);
-              _tu->logAction("resume track ", channel+1);
+              _tu->logAction("resume audio track ", channel+1);
             } else {
               _ta->startTrack(channel);
-              _tu->logAction("restart track (was paused?) ", channel+1);
+              _tu->logAction("restart audio track (was paused?) ", channel+1);
             }
           }
           _isPlaying[channel] = true;

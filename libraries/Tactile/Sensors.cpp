@@ -96,7 +96,7 @@ void Sensors::setTouchReleaseThresholds(int channel, float touchThreshold, float
   else
     _releaseThreshold[channel] = releaseThreshold;
 
-  if (_tu->getLogLevel() > 1) {
+  if (getLogLevel() > 1) {
     Serial.print(channel);
     Serial.print(": ");
   }
@@ -175,7 +175,7 @@ int Sensors::getTouchStatus(float proximityValues[], int sensorStatus[], int sen
     }
   }
 
-  if (numChanges > 0 && _tu->getLogLevel() > 1) {
+  if (numChanges > 0 && getLogLevel() > 1) {
     Serial.print("Sensors: ");
     Serial.print(numChanges);
     Serial.print(" changed, ");

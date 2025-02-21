@@ -197,7 +197,7 @@ void AudioPlayer::_startTrack(int channel) {
   AudioPlaySdWavPR *player = _getPlayerByTrack(channel);
   if (!player) return;
   player->play(trackName);
-  if (_tu->getLogLevel() > 1) {
+  if (getLogLevel() > 1) {
     Serial.print("AudioPlayer: start track ");
     Serial.print(channel);
     Serial.print(", ");
@@ -242,7 +242,7 @@ void AudioPlayer::_startRandomTrack(int channel) {
 
   player->play(filePath);
 
-  if (_tu->getLogLevel() > 1) {
+  if (getLogLevel() > 1) {
     Serial.print("AudioPlayer: start random track: ");
     Serial.print(filePath);
     Serial.print(" (");

@@ -21,11 +21,21 @@
 #include "Arduino.h"
 #include "TeensyUtils.h"
 
+// Static (non-object) logging functions.
+static int _logLevel = 0;
+void setLogLevel(int logLevel) {
+  _logLevel = logLevel;
+}
+int getLogLevel() {
+  return _logLevel;
+}
+
+
+
 TeensyUtils* TeensyUtils::setup() {
   TeensyUtils* tcpu = new(TeensyUtils);
   //  pinMode(TC_LED_PIN, OUTPUT);    // declare the TC_LED_PIN as an OUTPUT:
   Serial.begin(57600);
-  tcpu->_logLevel = 1;
   return tcpu;
 }
 
@@ -33,16 +43,9 @@ TeensyUtils* TeensyUtils::setup() {
  * Simple utility functions
  ----------------------------------------------------------------------*/
 
-void TeensyUtils::setLogLevel(int level) {
-  _logLevel = level;
-}
-
-int TeensyUtils::getLogLevel() {
-  return _logLevel;
-}
-
 void TeensyUtils::log(const char *msg) {
-  if (_logLevel < 1) return;
+  if (getLogLevel() < 1)
+    return;
   if (msg == NULL)
     Serial.println("TeensyUtils::log: NULL message!");
   else
@@ -50,7 +53,7 @@ void TeensyUtils::log(const char *msg) {
 }
 
 void TeensyUtils::logAction(const char *msg, int track) {
-  if (_logLevel < 1) return;
+  if (getLogLevel() < 1) return;
   if (msg == NULL)
     Serial.println("TeensyUtils::logAction: NULL message!");
   else {
@@ -60,7 +63,7 @@ void TeensyUtils::logAction(const char *msg, int track) {
 }
 
 void TeensyUtils::log2(const char *msg) {
-  if (_logLevel < 2) return;
+  if (getLogLevel() < 2) return;
   if (msg == NULL)
     Serial.println("TeensyUtils::log2: NULL message!");
   else
@@ -68,7 +71,7 @@ void TeensyUtils::log2(const char *msg) {
 }
 
 void TeensyUtils::logAction2(const char *msg, int track) {
-  if (_logLevel < 2) return;
+  if (getLogLevel() < 2) return;
   if (msg == NULL)
     Serial.println("TeensyUtils::logAction2: NULL message!");
   else {

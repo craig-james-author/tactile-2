@@ -209,7 +209,7 @@ void Vibrate::setVibrationEnvelope(int channel, const char *name) {
       _vibrationEnvelope[channel].msecPerPoint = 0;
       _vibrationEnvelope[channel].msecTotal = 0;
       _vibrationEnvelope[channel].intensities[0] = -1;
-      if (_tc->getLogLevel() > 0) {
+      if (getLogLevel() > 0) {
         Serial.print("setVibrationEnvelope: name not found: "); Serial.println(name);
       }
       break;
@@ -220,7 +220,7 @@ void Vibrate::setVibrationEnvelope(int channel, const char *name) {
       break;
     }
   }
-  if (_tc->getLogLevel() > 2) {
+  if (getLogLevel() > 2) {
     Serial.print("setVibrationEnvelope(): channel "); Serial.println(channel);
     Serial.print("     name "); Serial.println( _vibrationEnvelope[channel].name);
     Serial.print("  nPoints "); Serial.println(_vibrationEnvelope[channel].numberOfPoints);
@@ -256,7 +256,7 @@ void Vibrate::setVibrationEnvelopeFile(int channel, const char *name) {
     Serial.println(name);
     return;
   }
-  if (_tc->getLogLevel() > 1) {
+  if (getLogLevel() > 1) {
     Serial.print("setVibrationEnvelopeFile: opened file: ");
     Serial.println(name);
   }

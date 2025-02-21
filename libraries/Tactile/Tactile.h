@@ -44,10 +44,6 @@ class Tactile
   // Output destination: audio or vibration. Can be both.
   void setOutputDestination(int channel, OutputDest dest1, OutputDest dest2 = noOutput);
 
-
-  /*---------- This is forwarded to the TeensyUtils class ----------*/
-  void setLogLevel(int level);
-
   /*---------- These are forwarded to the Sensors class ----------*/
   void setMultiTrackMode(bool on);             // true == enable multiple simultaneous tracks
   void ignoreSensor(int channel, bool ignore);

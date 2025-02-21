@@ -26,22 +26,22 @@
 // Hardware-specific Teensy 4.1 definitions
 #define TC_LED_PIN 13
 
+// Static (non-class) logging functions.
+void setLogLevel(int logLevel);
+int getLogLevel();
+
+
 class TeensyUtils {
  public:
 
   static TeensyUtils *setup();
   void turnLedOn();
   void turnLedOff();
-  void setLogLevel(int level);
-  int  getLogLevel();
   void log(const char *msg);
   void log2(const char *msg);
   void logAction(const char *msg, int track);
   void logAction2(const char *msg, int track);
   void sleep(int milliseconds);
-
- private:
-  int _logLevel;
 };
 
 #endif

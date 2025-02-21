@@ -60,7 +60,7 @@ AudioFileManager::AudioFileManager(TeensyUtils *tc) {
     dir = SD.open(dirName);
     if (dir) {
       _numSubDirFiles[dirNum-1] = _readDirIntoStringArray(&dir, dirNum-1);
-    } else if (_tu->getLogLevel() > 1) {
+    } else if (getLogLevel() > 1) {
       Serial.print("AudioFileManager: Failed to open directory: '");
       Serial.print(dirName);
       Serial.println("'");
@@ -68,7 +68,7 @@ AudioFileManager::AudioFileManager(TeensyUtils *tc) {
   }
 
   // When detailed logging enabled...
-  if (_tu->getLogLevel() > 0) {
+  if (getLogLevel() > 1) {
     Serial.println("AudioFileManager:: tracks found:");
     for (int i = 0; i < NUM_CHANNELS; i++) {
       if (_fileNames[i])
@@ -93,7 +93,7 @@ int AudioFileManager::_readDirIntoStringArray(File *dir, int subDirNum)
 {
   char tmpNames[NUM_FILES_IN_SUBDIR][MAX_FILE_NAME];
 
-  if (_tu->getLogLevel() > 1) {
+  if (getLogLevel() > 1) {
     Serial.print("AudioFileManager::_readDirIntoStringArray(");
     if (!dir)
       Serial.print("NULL-dir");

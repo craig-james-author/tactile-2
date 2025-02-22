@@ -111,7 +111,7 @@ void Tactile::useProximityAsVolume(boolean on) {
 
 void Tactile::setFadeInTime(int channel, int milliseconds) {
   channel = channelExtern2Intern(channel);
-  if (milliseconds > 0 && _useProximityAsVolume) {
+  if (milliseconds > 0 && _useProximityAsVolume[channel]) {
     Serial.println("WARNING: proximity-as-volume mode is incompatible with fade-in/fade-out. "
                    "Fade-in time ignored.");
     return;
@@ -128,7 +128,7 @@ void Tactile::setFadeInTime(int milliseconds) {
 
 void Tactile::setFadeOutTime(int channel, int milliseconds) {
   channel = channelExtern2Intern(channel);
-  if (milliseconds > 0 && _useProximityAsVolume) {
+  if (milliseconds > 0 && _useProximityAsVolume[channel]) {
     Serial.println("WARNING: proximity-as-volume mode is incompatible with fade-in/fade-out. "
                    "Fade-out time ignored.");
     return;
@@ -370,22 +370,13 @@ void Tactile::_touchLoop() {
   else
     _tu->turnLedOff();
 
-  // Which channels are currently playing?
-  // _isPlaying[] tracks when a channel is playing, but the track may
-  // have finished. The && construct below is efficient because we
-  // don't check the more costly _ta->isPlaying (which actually queries
-  // the device) for channels that we know aren't; only if they might be.
-  for (int channel = 0; channel < NUM_CHANNELS; channel++) {
-    _isPlaying[channel] =
-      _isPlaying[channel]
-      && (   (_useAudioOutput[channel]     && _ta->isPlaying(channel))
-          || (_useVibrationOutput[channel] && _v->isPlaying(channel)));
-  }
-
   // Process releases first (makes bookkeeping easier for single-track mode).
   for (int channel = 0; channel < NUM_CHANNELS; channel++) {
 
     if (sensorChanged[channel] == NEW_RELEASE) {
+
+      _tu->logAction2("stop: continueTrack = ", _continueTrack[channel]);
+
 
       // Stop audio
       if (_useAudioOutput[channel]) {
@@ -412,46 +403,51 @@ void Tactile::_touchLoop() {
 
   // Now that we've processed releases, are there any still playing?
   // Need to know this for single-track mode.
-  bool somethingIsPlaying = false;
+  bool nothingIsPlaying = true;
   for (int channel = 0; channel < NUM_CHANNELS; channel++) {
-    somethingIsPlaying |= _isPlaying[channel];
+    if (_isPlaying[channel])
+      nothingIsPlaying = false;
   }
 
-  if (_multiTrack | !somethingIsPlaying) {
-
+  if (_multiTrack | nothingIsPlaying) {
+    
     for (int channel = 0; channel < NUM_CHANNELS; channel++) {
 
-      // For multi-track, a "Touch" is simple a new release.
+      // For multi-track, a "Touch" is simply a new release.
       // For single-track, it can also include an existing touch if the
       // track isn't playing (i.e. the new touch came while another track
       // was playing).
       if (sensorChanged[channel] == NEW_TOUCH
-          || (!_multiTrack && (sensorStatus[channel] == IS_TOUCHED && !_isPlaying[channel]))) {
-
+          || (!_multiTrack && ((sensorStatus[channel] == IS_TOUCHED) && !_isPlaying[channel]))) {
+        
         // Start or resume audio
         if (_useAudioOutput[channel]) {
-          if (!_isPlaying[channel]) {
-            if (!_continueTrack[channel])
-              _ta->cancelFades(channel);
-            _ta->startTrack(channel);
-            _tu->logAction("start audio track ", channel+1);
-          } else {
+          if (_continueTrack[channel]) {
             if (_ta->isPaused(channel)) {
-              _ta->resumeTrack(channel);
               _tu->logAction("resume audio track ", channel+1);
+              _ta->resumeTrack(channel);
             } else {
+              _tu->logAction("restart audio track ", channel+1);
               _ta->startTrack(channel);
-              _tu->logAction("restart audio track (was paused?) ", channel+1);
+            }
+          } else {
+            if (!_isPlaying[channel]) {
+              _tu->logAction("start audio track ", channel+1);
+              _ta->cancelFades(channel);
+              _ta->startTrack(channel);
             }
           }
-          _isPlaying[channel] = true;
+        }
+        _tu->logAction2("start: continueTrack = ", _continueTrack[channel]);
+
+
+        // Start vibration. This is much simpler.
+        if (_useVibrationOutput[channel]) {
+          _tu->logAction("start vibrator ", channel+1);
+          _v->start(channel);
         }
 
-        // Start vibration
-        if (_useVibrationOutput[channel]) {
-          _v->start(channel);
-          _tu->logAction("start vibrator ", channel+1);
-        }
+        _isPlaying[channel] = true;
 
         // If single-track mode, stop at the first NEW_TOUCH
         if (!_multiTrack)

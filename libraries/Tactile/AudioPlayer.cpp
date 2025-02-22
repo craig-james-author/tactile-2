@@ -364,7 +364,6 @@ void AudioPlayer::_doFadeInOut(int channel)
       if (newVolumePercent >= targetVol) {
 	newVolumePercent = targetVol;
       }
-      _tu->logAction2("AudioPlayer: Fade-in, set volume: ", newVolumePercent);
       _setActualVolume(channel, newVolumePercent);
     }
   }
@@ -392,7 +391,6 @@ void AudioPlayer::_doFadeInOut(int channel)
     if (newVolumePercent != actualVol) {
 
       // Time to decrease volume.
-      // _tu->logAction2("AudioPlayer: Fade-out, set volume: ", newVolumePercent);
       if (newVolumePercent < 0)
 	newVolumePercent = 0;
       _setActualVolume(channel, newVolumePercent);

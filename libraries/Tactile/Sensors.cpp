@@ -97,11 +97,14 @@ void Sensors::setTouchReleaseThresholds(int channel, float touchThreshold, float
     _releaseThreshold[channel] = releaseThreshold;
 
   if (getLogLevel() > 1) {
+    Serial.print("Sensor channel ");
     Serial.print(channel);
     Serial.print(": ");
+    Serial.print("touch threshold: ");
+    Serial.print(_touchThreshold[channel]);
+    Serial.print(", release threshold: ");
+    Serial.println(_releaseThreshold[channel]);
   }
-  _tu->logAction2("Sensors: Touch threshold: ", _touchThreshold[channel]);
-  _tu->logAction2("Sensors: Release threshold: ", _releaseThreshold[channel]);
 }  
 
 void Sensors::ignoreSensor(int channel, bool ignore) {

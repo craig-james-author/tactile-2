@@ -141,10 +141,11 @@ int AudioPlayer::cancelAll() {
   int cancelled = 0;
   for (int channel = 0; channel < NUM_CHANNELS; channel++) {
     AudioPlaySdWavPR *player = _getPlayerByTrack(channel);
-    if (!player) return 0;
-    if (player->isPlaying()) {
-      player->stop();
-      cancelled++;
+    if (player) {
+      if (player->isPlaying()) {
+        player->stop();
+        cancelled++;
+      }
     }
     _lastStartTime[channel] = 0;
     _lastStopTime[channel] = 0;

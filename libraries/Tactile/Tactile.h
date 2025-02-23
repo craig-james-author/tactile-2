@@ -44,6 +44,10 @@ class Tactile
   // Output destination: audio or vibration. Can be both.
   void setOutputDestination(int channel, OutputDest dest1, OutputDest dest2 = noOutput);
 
+  /*---------- These are implemented by the Tactile class ----------*/
+  void setContinueTrackMode(int channel, bool on);      // true == 2nd touch continues track where it left off
+  void setContinueTrackMode(bool on);
+
   /*---------- These are forwarded to the Sensors class ----------*/
   void setMultiTrackMode(bool on);             // true == enable multiple simultaneous tracks
   void ignoreSensor(int channel, bool ignore);
@@ -51,10 +55,7 @@ class Tactile
   void setTouchReleaseThresholds(int channel, int touch, int release);
   void setTouchToStop(int channel, bool on);            // true == touch-on-touch-off (normally touch-on-release-off)
   void setTouchToStop(bool on);
-  void setContinueTrackMode(int channel, bool on);      // true == 2nd touch continues track where it left off
-  void setContinueTrackMode(bool on);
-  void setLoopMode(int channel, bool on);               // true == track restarts (loops) when end reached
-  void setLoopMode(bool on);
+  void setAveragingStrength(int samples);             // more smooths signal, default is 200
 
   /*---------- These are forwarded to the AudioPlayer module ----------*/
   void setVolume(int channel, int percent);
@@ -66,9 +67,10 @@ class Tactile
   void setFadeInTime(int milliseconds);
   void setFadeOutTime(int channel, int milliseconds);
   void setFadeOutTime(int milliseconds);
+  void setLoopMode(int channel, bool on);             // true == track restarts (loops) when end reached
+  void setLoopMode(bool on);
   void useRandomTracks(int channel, bool on);         // true == random selection from sensor's directory
   void useRandomTracks(bool on);
-  void setAveragingStrength(int samples);             // more smooths signal, default is 200
   const char *getTrackName(int channel);
 
   // renamed -- use #define so that Tactile v1 sketches will work

@@ -1,31 +1,32 @@
 /*----------------------------------------------------------------------
- * Test program, for TactileAudio and TactileSensors module.  uses input
+ * Test program, for AudioPlayer and Sensors module.  uses input
  * sensors in touch/release mode to start/stop * audio tracks.
  ----------------------------------------------------------------------*/
 
 #include <Arduino.h>
-#include "TactileCPU.h"
-#include "TactileSensors.h"
-#include "TactileAudio.h"
+#include "TeensyUtils.h"
+#include "Sensors.h"
+#include "AudioPlayer.h"
 
-TactileCPU     *tc;
-TactileSensors *ts;
-TactileAudio   *ta;
+TeensyUtils *tu;
+Sensors     *ts;
+AudioPlayer *ta;
 
 void setup() {
-  tc = TactileCPU::setup();
-  ts = TactileSensors::setup(tc);
-  ta = TactileAudio::setup(tc);
+  tu = TeensyUtils::setup();
+  ts = Sensors::setup(tu);
+  ta = AudioPlayer::setup(tu);
 }
 
 void loop() {
-  int sensorStatus[NUM_SENSORS];
-  int sensorChanged[NUM_SENSORS];
+  float proximityValues[NUM_CHANNELS];
+  int sensorStatus[NUM_CHANNELS];
+  int sensorChanged[NUM_CHANNELS];
 
-  int numChanged = ts->getTouchStatus(sensorStatus, sensorChanged);
+  int numChanged = ts->getTouchStatus(proximityValues, sensorStatus, sensorChanged);
 
   int numTouched = 0;
-  for (int sensorNumber = FIRST_SENSOR; sensorNumber <= LAST_SENSOR; sensorNumber++) {
+   for (int sensorNumber = 0; sensorNumber < NUM_CHANNELS; sensorNumber++) {
     if (sensorStatus[sensorNumber] == IS_TOUCHED)
       numTouched++;
   }
@@ -34,28 +35,28 @@ void loop() {
 
     Serial.print(numTouched);
     Serial.print("  ");
-    for (int sensorNumber = FIRST_SENSOR; sensorNumber <= LAST_SENSOR; sensorNumber++) {
+    for (int sensorNumber = 0; sensorNumber < NUM_CHANNELS; sensorNumber++) {
       Serial.print(sensorNumber);
       Serial.print(":");
       Serial.print(sensorStatus[sensorNumber] ? "T " : "R ");
     }
     Serial.println();
 
-    for (int sensorNumber = FIRST_SENSOR; sensorNumber <= LAST_SENSOR; sensorNumber++) {
+    for (int sensorNumber = 0; sensorNumber < NUM_CHANNELS; sensorNumber++) {
       if (sensorChanged[sensorNumber] == NEW_TOUCH) {
         if (ta->isPaused(sensorNumber)) {
-          tc->log_action("track is paused: ", sensorNumber);
+          tu->logAction("track is paused: ", sensorNumber);
           ta->resumeTrack(sensorNumber);
-          tc->log_action("track resumed: ", sensorNumber);
+          tu->logAction("track resumed: ", sensorNumber);
         }
         else {
           ta->startTrack(sensorNumber);
-          tc->log_action("started track: ", sensorNumber);
+          tu->logAction("started track: ", sensorNumber);
         }
       }
       else if (sensorChanged[sensorNumber] == NEW_RELEASE) {
         ta->pauseTrack(sensorNumber);
-        tc->log_action("paused track: ", sensorNumber);
+        tu->logAction("paused track: ", sensorNumber);
       }
     }
   }

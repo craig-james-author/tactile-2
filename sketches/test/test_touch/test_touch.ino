@@ -1,31 +1,32 @@
 /*----------------------------------------------------------------------
- * Simple test program for TactileSensors module.
+ * Simple test program for Sensors module.
  ----------------------------------------------------------------------*/
 
-#include "TactileCPU.h"
-#include "TactileSensors.h"
+#include "TeensyUtils.h"
+#include "Sensors.h"
 
 int led_cycle   = 0;
-TactileCPU *tc;
-TactileSensors *ts;
+TeensyUtils *tu;
+Sensors *ts;
 
 const int ledPin = 13;
 
 void setup() {
-  tc = TactileCPU::setup();
-  ts = TactileSensors::setup(tc);
+  tu = TeensyUtils::setup();
+  ts = Sensors::setup(tu);
 }
 
 void loop() {
-  int sensorStatus[NUM_SENSORS];
-  int sensorChanged[NUM_SENSORS];
+  float proximity[NUM_CHANNELS];
+  int sensorStatus[NUM_CHANNELS];
+  int sensorChanged[NUM_CHANNELS];
 
-  int numChanged = ts->getTouchStatus(sensorStatus, sensorChanged);
+  int numChanged = ts->getTouchStatus(proximity, sensorStatus, sensorChanged);
 
   if (numChanged > 0) {
     Serial.print(numChanged);
     Serial.print("  ");
-    for (int sensorNumber = FIRST_SENSOR; sensorNumber <= LAST_SENSOR; sensorNumber++) {
+    for (int sensorNumber = 0; sensorNumber < NUM_CHANNELS; sensorNumber++) {
       Serial.print(sensorNumber);
       Serial.print(":");
       Serial.print(sensorStatus[sensorNumber] ? "T" : "R");

@@ -37,6 +37,7 @@ class Tactile
   static Tactile *setup();
   void loop(void);
   void setInactivityTimeout(int seconds);      // continueTrackMode: reset to beginning if idle this long
+  void setLogLevel(int level);
 
   // Input source: touchInput or audioInput (mutually exclusive)
   void setInputSource(int channel, InputSource iSource);

@@ -3,11 +3,11 @@
  ----------------------------------------------------------------------*/
 
 #include <Arduino.h>
-#include "TactileCPU.h"
-#include "TactileFileManager.h"
+#include "TeensyUtils.h"
+#include "AudioFileManager.h"
 
-TactileCPU *tc;
-TactileFileManager *fm;
+TeensyUtils *tc;
+AudioFileManager *fm;
 
 #define LED_PIN 13
 

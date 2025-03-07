@@ -45,6 +45,10 @@ static int channelExtern2Intern(int channel) {
   return channel;
 }
 
+void Tactile::setLogLevel(int level) {
+  ::setLogLevel(level);
+}
+
 /*---------- Audio Sound controls ----------*/
 
 void Tactile::setOutputDestination(int channel, OutputDest dest1, OutputDest dest2) {

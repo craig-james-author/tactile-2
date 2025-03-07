@@ -1,15 +1,15 @@
 /*----------------------------------------------------------------------
- * Tests the TactileAudio module's multi-track feature. Plays every
+ * Tests the Audio module's multi-track feature. Plays every
  * combination of four tracks using start/stop, then repeats using
  * pause/resume.
  ----------------------------------------------------------------------*/
 
 #include <Arduino.h>
-#include "TactileCPU.h"
-#include "TactileAudio.h"
+#include "TeensyUtils.h"
+#include "AudioPlayer.h"
 
-TactileCPU     *tc;
-TactileAudio   *ta;
+TeensyUtils *tu;
+AudioPlayer *ta;
 
 int n = 0;
 
@@ -17,10 +17,11 @@ bool play[4];
 bool pause;
 
 void setup() {
-  tc = TactileCPU::setup();
-  ta = TactileAudio::setup(tc);
-  tc->setLogLevel(1);
-  ta->setVolume(30);
+  setLogLevel(1);
+  tu = TeensyUtils::setup();
+  ta = AudioPlayer::setup(tu);
+  for (int c = 0; c < NUM_CHANNELS; c++)
+    ta->setVolume(c, 30);
 }
 
 void loop() {

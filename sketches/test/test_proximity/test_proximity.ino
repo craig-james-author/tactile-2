@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------
- * Simple test program for TactileSensors module "proximity" feature.
+ * Simple test program for Sensors module "proximity" feature.
  * Prints a stream of numbers, one column per track, of what it senses
  * on the four input channels.
  *
@@ -14,8 +14,8 @@ int led_cycle   = 0;
 Sensors *t;
 
 void setup() {
-  TeensyUtils *tc = TeensyUtils::setup();
-  t = Sensors::setup(tc);
+  TeensyUtils *tu = TeensyUtils::setup();
+  t = Sensors::setup(tu);
 }
 
 void loop() {

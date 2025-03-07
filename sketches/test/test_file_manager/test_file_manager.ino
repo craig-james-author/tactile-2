@@ -1,18 +1,18 @@
 /*----------------------------------------------------------------------
- * Test sketch for the libraries/Tactile/TactileFileManager module 
+ * Test sketch for the libraries/Tactile/AudioFileManager module 
  ----------------------------------------------------------------------*/
 
 #include <Arduino.h>
-#include "TactileCPU.h"
-#include "TactileFileManager.h"
+#include "TeensyUtils.h"
+#include "AudioFileManager.h"
 
-TactileCPU *tc;
-TactileFileManager *fm;
+TeensyUtils *tc;
+AudioFileManager *fm;
 
 void setup() {
-  tc = TactileCPU::setup();
-  tc->setLogLevel(1);
-  fm = new TactileFileManager(tc);
+  tc = TeensyUtils::setup();
+  setLogLevel(2);
+  fm = new AudioFileManager(tc);
 }
 
 void loop() {

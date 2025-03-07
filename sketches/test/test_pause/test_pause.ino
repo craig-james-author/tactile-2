@@ -1,19 +1,19 @@
 /*----------------------------------------------------------------------
- * Simple test of TactileAudio module's pause/resume feature.
+ * Simple test of Audio module's pause/resume feature.
 ----------------------------------------------------------------------*/
 
 #include <Arduino.h>
-#include "TactileCPU.h"
-#include "TactileSensors.h"
-#include "TactileAudio.h"
+#include "TeensyUtils.h"
+#include "Sensors.h"
+#include "AudioPlayer.h"
 
 int n = 0;
-TactileCPU     *tc;
-TactileAudio   *ta;
+TeensyUtils *tc;
+AudioPlayer *ta;
 
 void setup() {
-  tc = TactileCPU::setup();
-  ta = TactileAudio::setup(tc);
+  tc = TeensyUtils::setup();
+  ta = AudioPlayer::setup(tc);
 }
 
 void loop() {

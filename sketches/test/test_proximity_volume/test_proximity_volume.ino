@@ -4,19 +4,19 @@
  * to control volume.
  ----------------------------------------------------------------------*/
 
-#include "TactileCPU.h"
-#include "TactileSensors.h"
-#include "TactileAudio.h"
+#include "TeensyUtils.h"
+#include "Sensors.h"
+#include "AudioPlayer.h"
 
 int led_cycle = 0;
-TactileCPU     *tc;
-TactileSensors *ts;
-TactileAudio   *ta;
+TeensyUtils  *tu;
+Sensors      *ts;
+AudioPlayer  *ta;
 
 void setup() {
-  tc = TactileCPU::setup();
-  ts = TactileSensors::setup(tc);
-  ta = TactileAudio::setup(tc);
+  tu = TeensyUtils::setup();
+  ts = Sensors::setup(tu);
+  ta = AudioPlayer::setup(tu);
 }
 
 void log(const char *action, int track, float volume) {
@@ -28,19 +28,19 @@ void log(const char *action, int track, float volume) {
 
 void loop() {
 
-  for (int sensorNumber = FIRST_SENSOR; sensorNumber <= LAST_SENSOR; sensorNumber++) {
-    float p = ts->getProximityPercent(sensorNumber);
-    int playing = ta->isPlaying(sensorNumber);
+  for (int channel = 0; channel < NUM_CHANNELS; channel++) {
+    float p = ts->getProximityPercent(channel);
+    int playing = ta->isPlaying(channel);
     if (p > 10.0) {
       if (!playing)
-        ta->startTrack(sensorNumber);
-      ta->setVolume(p);
-      log("play ", sensorNumber, p);
+        ta->startTrack(channel);
+      ta->setVolume(channel, p);
+      log("play ", channel, p);
     } else {
       if (playing) {
-        ta->stopTrack(sensorNumber);
-        log("stop ", sensorNumber, p);
-        ta->setVolume(0);
+        ta->stopTrack(channel);
+        log("stop ", channel, p);
+        ta->setVolume(channel, 0);
       }
     }
   }

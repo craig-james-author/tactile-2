@@ -151,13 +151,12 @@ void Vibrate::doTimerTasks() {
         _startTimeForPoint[channel] = timeNow;
 
         // If motor vibrator, change the intensity now (once). (For linear vibrators,
-        // the intensity is set above in the AC signal part.) Motor vibrators use DC,
-        // and only need one channel. Set both to the output level because why not.
+        // the intensity is set above in the AC signal part.)
         if (_vibratorType[channel] == motorVibrator) {
           int pin1 = _convertChannelToPin1(channel);
           int pin2 = _convertChannelToPin2(channel);
-          analogWrite(pin1, 2 * _actualIntensity[channel]);
-          analogWrite(pin2, 2 * _actualIntensity[channel]);
+          analogWrite(pin1, 127 + _actualIntensity[channel]);
+          analogWrite(pin2, 128 - _actualIntensity[channel]);
         }
       }
     }

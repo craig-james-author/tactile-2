@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------
  * This sketch tests the Teensy + Audio Board "raw", that is, without
- * using the TactileAudio library file. It will confirm that the
+ * using the Audio library file. It will confirm that the
  * hardware is working.
 ----------------------------------------------------------------------*/
 
@@ -41,7 +41,7 @@ void setup() {
 #define SDCARD_MOSI_PIN 11
 #define SDCARD_SCK_PIN  13
 #define SDCARD_CS_PIN   10
-  Serial.println("TactileFileManager: Initializing SD card...");
+  Serial.println("AudioFileManager: Initializing SD card...");
   SPI.setMOSI(SDCARD_MOSI_PIN);
   SPI.setSCK(SDCARD_SCK_PIN);
   if (!SD.begin(SDCARD_CS_PIN)) {

@@ -1,3 +1,16 @@
+//======================================================================
+//
+// Modify this file as you like using the TactileAudio Configurator:
+//
+//     https://tactileaudio.org/tactile-configurator/
+//
+// It is an easy-to-use web app that guides you through configuring the
+// various options of the TactileAudio software, and then creates a sketch
+// like this one but tailored to your needs.
+//
+//======================================================================
+
+
 #include <Arduino.h>
 #include "Tactile.h"
 
@@ -5,43 +18,31 @@ Tactile *t;
 
 void setup() {
 
-  setLogLevel(1);
+  setLogLevel(0);
 
   t = Tactile::setup();
-
-  // Which channels are disabled (inactive)?
-  t->ignoreSensor(1, false);
-  t->ignoreSensor(2, true);
-  t->ignoreSensor(3, true);
-  t->ignoreSensor(4, true);
-
-  // Input sensor 1:
-  t->useProximityAsVolumeMode(1, true);
-  t->setTouchReleaseThresholds(1, 15, 10);
-
-  // Output audio, vibration, or both?
-  t->setOutputDestination(1, audioOutput, vibrationOutput);
-
-  // Options that apply to all channels:
   t->setInactivityTimeout(60);
-  t->setMultiTrackMode(false);
+  t->setMultiTrackMode(true);
 
-  // Audio channel 1:
+  // Channel 1
+  t->setTouchReleaseThresholds(1, 85, 65);
+  t->setOutputDestination(1, audioOutput);
   t->setVolume(1, 100);
-  t->setFadeInTime(1, 0);
-  t->setFadeOutTime(1, 0);
-  t->setContinueTrackMode(1, true);
-  t->setPlayRandomTrackMode(1, false);
-  t->setLoopMode(1, false);
 
-  
+  // Channel 2
+  t->setTouchReleaseThresholds(2, 85, 65);
+  t->setOutputDestination(2, audioOutput);
+  t->setVolume(2, 100);
 
-  // General (advanced) options (uncomment to change):
-  // t->setProximityMultiplier(1, 1.0);
-  // t->setProximityMultiplier(2, 1.0);
-  // t->setProximityMultiplier(3, 1.0);
-  // t->setProximityMultiplier(4, 1.0);
-  // t->setAveragingStrength(200);
+  // Channel 3
+  t->setTouchReleaseThresholds(3, 85, 65);
+  t->setOutputDestination(3, audioOutput);
+  t->setVolume(3, 100);
+
+  // Channel 4
+  t->setTouchReleaseThresholds(4, 85, 65);
+  t->setOutputDestination(4, audioOutput);
+  t->setVolume(4, 100);
 }
 
 void loop() {

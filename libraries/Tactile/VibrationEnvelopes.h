@@ -23,7 +23,9 @@
 
 #include "Vibrate.h"
 
-static VibrationEnvelope builtInEnvelopes[] = {
+#define NUM_VIBRATION_ENVELOPES 10
+
+VibrationEnvelope vibrationEnvelopes[NUM_VIBRATION_ENVELOPES] = {
   
   {{"continuous"}, 0, 0, 0, true,
    {100, -1}
@@ -48,7 +50,11 @@ static VibrationEnvelope builtInEnvelopes[] = {
      16, 14, 12, 11, 10, 9, 7, 5, 4, 3, 2, 1, 0, -1}
   },
 
+  {{""},0,0,0,false,{-1}},      // These slots are for customer-defined envelopes
+  {{""},0,0,0,false,{-1}},
+  {{""},0,0,0,false,{-1}},
+  {{""},0,0,0,false,{-1}},
   {{""},0,0,0,false,{-1}}
 };
-
+  
 #endif

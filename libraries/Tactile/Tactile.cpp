@@ -226,6 +226,13 @@ void Tactile::setAveragingStrength(int samples) {
 
 /*-------------------- vibration controls --------------------*/
 
+void Tactile::addCustomVibrationEnvelope(VibrationEnvelope &ve) {
+  _v->addCustomVibrationEnvelope(ve);
+}
+void Tactile::setVibrationEnvelope(int channel, const char *name) {
+  channel = channelExtern2Intern(channel);
+  _v->setVibrationEnvelope(channel, name);
+}
 void Tactile::setVibratorType(int channel, VibratorType vibType) {
   channel = channelExtern2Intern(channel);
   _v->setVibratorType(channel, vibType);
@@ -234,18 +241,9 @@ void Tactile::setVibrationFrequency(int channel, int frequency) {
   channel = channelExtern2Intern(channel);
   _v->setVibrationFrequency(channel, frequency);
 }
-
 void Tactile::setVibrationIntensity(int channel, int intensityPercent) {
   channel = channelExtern2Intern(channel);
   _v->setIntensity(intensityPercent);
-}
-void Tactile::setVibrationEnvelope(int channel, const char *name) {
-  channel = channelExtern2Intern(channel);
-  _v->setVibrationEnvelope(channel, name);
-}
-void Tactile::setVibrationEnvelopeFile(int channel, const char *fileName) {
-  channel = channelExtern2Intern(channel);
-  _v->setVibrationEnvelopeFile(channel, fileName);
 }
 void Tactile::overrideVibrationEnvelopeDuration(int channel, int msec) {
   channel = channelExtern2Intern(channel);

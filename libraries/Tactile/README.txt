@@ -4,10 +4,15 @@ THE TACTILE PROJECT LIBRARY
 
 For an explanation of what the Tactile project is, see
 
-  https://docs.google.com/document/d/1PwvoPVsNonqkqNiFn8hyfcOJ5IofLOvvq3fhWHgsmE4/edit?usp=sharing
+  https://tactileaudio.org/about
 
-When learning about this software, start with Tactile.h. Everything else in
-this library is "wrapped" by Tactile.h and Tactile.cpp.
+When learning about this software, start with the file Tactile.h.
+Everything else in this library is "wrapped" by Tactile.h and Tactile.cpp.
+
+However, you should never need to do this. There is an HTML app that writes
+the C++ code (the Arduino "sketch") for you:
+
+	https://tactileaudio.org/tactile-configurator/
 
 The Tactile class is designed to make Arduino sketches really
 simple. Arduino "sketches" (programs) have only two functions:
@@ -20,20 +25,23 @@ an Arduino sketch for the Tactile project is like this:
 
   #include <Arduino.h>
   #include "Tactile.h"
+
   Tactile *t;
+
   void setup() {
-    setLogLevel(0);
+
+    // Mandatory setup call
     t = Tactile::setup();
+
     // set up a bunch of options, see Tactile.h
     t->ignoreSensor(1, false);
     ... etc.
   }
+
+  // Mandatory loop
   void loop() {
     t->loop();
   }
-
-That's it. However, you should never need to do this. There are two HTML
-apps that write the sketch for you. See the software distribution page.
 
 Design "standards"
 
@@ -46,9 +54,9 @@ Design "standards"
   uses classes with public/private methods and state variables, but down in
   the actual code, it looks more like regular C. For example, there is no
   use of stdlib things like Vectors or Strings; instead, the library uses
-  good old integer[] and char[] arrays. This is to keep things simple and
-  more maintainable, but primarily to keep the code light without pulling
-  in big libraries.
+  integer[] and char[] arrays. This is to keep things simple and more
+  maintainable, but primarily to keep the code light without pulling in big
+  libraries.
 
   All private function and variable names start with an underscore. All
   functions and variables use "studly caps" naming, e.g. getLogLevel().

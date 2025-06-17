@@ -27,15 +27,17 @@
 // A "vibration envelope" is a series of intensity settings applied to a
 // vibrator output over a specified period of time.
 
+#define VIB_ENVELOPE_MAX_NAME 100
+#define VIB_ENVELOPE_MAX_POINTS 200
+
 struct VibrationEnvelope {
-  char name[20];
+  char name[VIB_ENVELOPE_MAX_NAME];
   int numberOfPoints;   // length of "intensities" array (cached)
   int msecPerPoint;     // msec per item in "intensities" array (cached)
   int msecTotal;        // time from start to finish
   boolean repeats;      // loops? or once-and-stop?
-  int intensities[200]; // a list of intensity values applied every msecPerPoint
+  int intensities[VIB_ENVELOPE_MAX_POINTS]; // a list of intensity values applied every msecPerPoint
 };
-
 
 // This module controls the vibrators: mode (VIBRATE, PULSE), intensity,
 // and timing.
@@ -53,22 +55,20 @@ class Vibrate
   void stop      (int channel);
   bool isPlaying (int channel);
 
-  // Amplitude of vibrations
+  void addCustomVibrationEnvelope(VibrationEnvelope &ve);
+
+  void setVibrationEnvelope(int channel, const char *name);
   void setIntensity (int channel, int percent);
   void setIntensity (int percent);
-
-  // Shortens the period of the amplitude envelope
   void setSpeedMultiplier(int channel, int multiplierPercent);
-
-  // built-in patterns, or pattern defined on the SD card
-  void setVibrationEnvelope(int channel, const char *name);
-  void setVibrationEnvelopeFile(int channel, const char *fileName);
   void overrideVibrationEnvelopeDuration(int channel, int msec);
   void overrideVibrationEnvelopeRepeats(int channel, bool repeat);
   void setVibratorType(int channel, VibratorType vibType);
   void setVibrationFrequency(int channel, int frequency);
   void doTimerTasks();
   
+  // Custom (user-defined) patterns
+
   // Normally leave this at default.
   void setPwmFrequency(int frequency);
 
@@ -100,7 +100,6 @@ class Vibrate
   int _convertChannelToPin1(int channel);
   int _convertChannelToPin2(int channel);
   int _checkChannel(int channel);
-  int _readln(File f, char *buf, int bufLen);
 
   void _calculateLengthOfEnvelope(int channel);
   void _calculateMsecPerEnvelopePoint(int channel);

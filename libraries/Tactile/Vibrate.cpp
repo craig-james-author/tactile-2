@@ -201,118 +201,51 @@ bool Vibrate::isPlaying(int channel) {
 }
 
 void Vibrate::setVibrationEnvelope(int channel, const char *name) {
-  for (int i = 0; ; i++) {
-    if (builtInEnvelopes[i].name[0] == 0) {     // end of list
-      _vibrationEnvelope[channel].name[0] = '\0';
-      _vibrationEnvelope[channel].numberOfPoints = 0;
-      _vibrationEnvelope[channel].msecPerPoint = 0;
-      _vibrationEnvelope[channel].msecTotal = 0;
-      _vibrationEnvelope[channel].intensities[0] = -1;
-      if (getLogLevel() > 0) {
-        Serial.print("setVibrationEnvelope: name not found: "); Serial.println(name);
-      }
-      break;
-    } else if (0 == strcmp(builtInEnvelopes[i].name, name)) {
-      _vibrationEnvelope[channel] = builtInEnvelopes[i];
+  bool foundIt = false;
+  for (int i = 0; i < NUM_VIBRATION_ENVELOPES; i++) {
+    if (0 == strcmp(vibrationEnvelopes[i].name, name)) {
+      _vibrationEnvelope[channel] = vibrationEnvelopes[i];
       _calculateLengthOfEnvelope(channel);   // in case definition is wrong or not set
       _calculateMsecPerEnvelopePoint(channel);
+      foundIt = true;
       break;
     }
   }
-  if (getLogLevel() > 2) {
+  if (!foundIt) {
+    _vibrationEnvelope[channel].name[0] = '\0';
+    _vibrationEnvelope[channel].numberOfPoints = 0;
+    _vibrationEnvelope[channel].msecPerPoint = 0;
+    _vibrationEnvelope[channel].msecTotal = 0;
+    _vibrationEnvelope[channel].intensities[0] = -1;
+    if (getLogLevel() > 0) {
+      Serial.print("setVibrationEnvelope: name not found: "); Serial.println(name);
+    }
+  } else if (getLogLevel() > 0) {
     Serial.print("setVibrationEnvelope(): channel "); Serial.println(channel);
-    Serial.print("     name "); Serial.println( _vibrationEnvelope[channel].name);
+    Serial.print("     name "); Serial.println(_vibrationEnvelope[channel].name);
     Serial.print("  nPoints "); Serial.println(_vibrationEnvelope[channel].numberOfPoints);
     Serial.print("  msecPer "); Serial.println(_vibrationEnvelope[channel].msecPerPoint);
     Serial.print("  msecTot "); Serial.println(_vibrationEnvelope[channel].msecTotal);
   }
 }
 
-int Vibrate::_readln(File f, char *buf, int bufLen) {
-  int len = 0;
-  while (len < bufLen-1) {
-    if (f.available() <= 0) {
-      break;
-    }
-    char c = f.read();
-    if (c == '\n') {
-      break;
-    } else {
-      buf[len++] = c;
-    }
-  }
-  buf[len] = '\0';    // line too long for buffer
-  return len;
-}
-
-void Vibrate::setVibrationEnvelopeFile(int channel, const char *name) {
-
-  char buffer[101];
-
-  File myFile = SD.open(name, FILE_READ);
-  if (!myFile) {
-    Serial.print("setVibrationEnvelopeFile: can't open file: ");
-    Serial.println(name);
-    return;
-  }
-  if (getLogLevel() > 1) {
-    Serial.print("setVibrationEnvelopeFile: opened file: ");
-    Serial.println(name);
-  }
-  // read parameters up to the "intensities:" line
-  int   frequency = 0;
-  int   numberOfPoints = 0;  
-  float soundLength = 0;
-  while (myFile.available()) {
-    _readln(myFile, buffer, 100);
-    char *nameEnd, *value;
-    nameEnd = strchr(buffer, ':');
-    if (!nameEnd) {
-      Serial.print("setVibrationEnvelopeFile: Invalid line in file: ");
-      Serial.println(name);
-      myFile.close();
+void Vibrate::addCustomVibrationEnvelope(VibrationEnvelope &ve) {
+  // Find the first empty slot
+  for (int slot = 0; slot < NUM_VIBRATION_ENVELOPES; slot++) {
+    if (vibrationEnvelopes[slot].name[0] == 0) {     // empty slot
+      _vibrationEnvelope[slot] = ve;
+      if (getLogLevel() > 0) {
+        Serial.print("addCustomVibrationEnvelope(");
+        Serial.print(ve.name);
+        Serial.println(")");
+      }
       return;
     }
-    *nameEnd = '\0';
-    value = nameEnd + 1;
-    if        (0 == strcmp(buffer, "soundLength")) {
-      soundLength = atof(value);
-    } else if (0 == strcmp(buffer, "frequency")) {
-      frequency = atoi(value);
-    } else if (0 == strcmp(buffer, "numPoints")) {
-      numberOfPoints = atoi(value);
-    } else if (0 == strcmp(buffer, "intensities")) {
-      break;
-    }
   }
-
-  VibrationEnvelope *ve = &_vibrationEnvelope[channel];
-
-  int n = 0;
-  while (myFile.available()) {
-    int len = _readln(myFile, buffer, 100);
-    if (len == 0)
-      break;
-    int intensity = atoi(buffer);
-    ve->intensities[n++] = intensity;
+  if (getLogLevel() > 0) {
+    Serial.print("Too many vibration envelopes: max ");
+    Serial.println(NUM_VIBRATION_ENVELOPES);
   }
-  myFile.close();
-
-  if (n != numberOfPoints) {
-    Serial.print("Error: numPoints doesn't match actual number of intensity values: ");
-    Serial.print(numberOfPoints); Serial.print(":"); Serial.println(n);
-    numberOfPoints = n;
-  }
-  if (numberOfPoints <= 0) {    // invalid values, set simple default
-    numberOfPoints = 1;
-    ve->intensities[0] = 100;
-  }
-
-  ve->msecTotal = (int)(1000.0 * soundLength);
-  ve->numberOfPoints = numberOfPoints;
-  ve->msecPerPoint = (int)(0.5 + ve->msecTotal/numberOfPoints);
-
-  setVibrationFrequency(channel+1, frequency);
 }
 
 void Vibrate::overrideVibrationEnvelopeDuration(int channel, int msec) {

@@ -230,14 +230,14 @@ void Vibrate::setVibrationEnvelope(int channel, const char *name) {
 }
 
 void Vibrate::addCustomVibrationEnvelope(VibrationEnvelope &ve) {
-  // Find the first empty slot
   for (int slot = 0; slot < NUM_VIBRATION_ENVELOPES; slot++) {
     if (vibrationEnvelopes[slot].name[0] == 0) {     // empty slot
-      _vibrationEnvelope[slot] = ve;
+      vibrationEnvelopes[slot] = ve;
       if (getLogLevel() > 0) {
         Serial.print("addCustomVibrationEnvelope(");
         Serial.print(ve.name);
-        Serial.println(")");
+        Serial.print("), index ");
+        Serial.println(slot);
       }
       return;
     }

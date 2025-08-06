@@ -283,7 +283,7 @@ bool AudioPlayer::isPlaying(int channel) {
 
 void AudioPlayer::pauseTrack(int channel) {
   AudioPlaySdWavPR *player = _getPlayerByTrack(channel);
-  if (!player) return; 
+  if (!player|| !player->isPlaying()) return; 
   if (_fadeOutTime[channel] == 0) {
     player->pause();
     _setActualVolume(channel, 0);
@@ -427,13 +427,14 @@ void AudioPlayer::doTimerTasks()
       uint32_t now = millis();
       if (now - _lastStartTime[channel] > 50) {  // Player doesn't reliably report isPlaying() for a
         if (!player->isPlaying()) {                  // few msec, so if it just started playing, skip this.
-          if (_loopMode) {
+          if (_loopMode[channel]) {
             startTrack(channel);
             _tu->logAction2("end of track, looping: ", channel);
           } else {
             _lastStartTime[channel] = 0;
             _lastStopTime[channel] = now;
             _tu->logAction2("end of track ", channel);
+            stopTrack(channel);
           }
         }
       }

@@ -372,91 +372,95 @@ void Tactile::_touchLoop() {
   else
     _tu->turnLedOff();
 
-  // Process releases first (makes bookkeeping easier for single-track mode).
-  for (int channel = 0; channel < NUM_CHANNELS; channel++) {
+  if (numChanged > 0) {
 
-    if (sensorChanged[channel] == NEW_RELEASE) {
-
-      _tu->logAction2("stop: continueTrack = ", _continueTrack[channel]);
-
-
-      // Stop audio
-      if (_useAudioOutput[channel]) {
-        if (_isPlaying[channel]) {
-          if (_continueTrack[channel]) {
-            _tu->logAction("pause audio ", channel+1);
-            _ta->pauseTrack(channel);
-          } else {
-            _tu->logAction("stop audio ", channel+1);
-            _ta->stopTrack(channel);
-          }
-        }
-      }
-
-      // Stop vibration
-      if (_useVibrationOutput[channel]) {
-        _tu->logAction("stop vibrator ", channel+1);
-        _v->stop(channel);
-      }
-
-      _isPlaying[channel] = false;
-    }
-  }
-
-  // Now that we've processed releases, are there any still playing?
-  // Need to know this for single-track mode.
-  bool nothingIsPlaying = true;
-  for (int channel = 0; channel < NUM_CHANNELS; channel++) {
-    if (_isPlaying[channel])
-      nothingIsPlaying = false;
-  }
-
-  if (_multiTrack | nothingIsPlaying) {
-    
+    // Process releases first (makes bookkeeping easier for single-track mode).
     for (int channel = 0; channel < NUM_CHANNELS; channel++) {
 
-      // For multi-track, a "Touch" is simply a new release.
-      // For single-track, it can also include an existing touch if the
-      // track isn't playing (i.e. the new touch came while another track
-      // was playing).
-      if (sensorChanged[channel] == NEW_TOUCH
-          || (!_multiTrack && ((sensorStatus[channel] == IS_TOUCHED) && !_isPlaying[channel]))) {
-        
-        // Start or resume audio
+      if (sensorChanged[channel] == NEW_RELEASE) {
+
+        _tu->logAction2("stop: continueTrack = ", _continueTrack[channel]);
+
+        // Stop audio
         if (_useAudioOutput[channel]) {
-          if (_continueTrack[channel]) {
-            if (_ta->isPaused(channel)) {
-              _tu->logAction("resume audio track ", channel+1);
-              _ta->resumeTrack(channel);
+          if (_isPlaying[channel]) {
+            if (_continueTrack[channel]) {
+              _tu->logAction("pause audio ", channel+1);
+              _ta->pauseTrack(channel);
             } else {
-              _tu->logAction("restart audio track ", channel+1);
-              _ta->startTrack(channel);
-            }
-          } else {
-            if (!_isPlaying[channel]) {
-              _tu->logAction("start audio track ", channel+1);
-              _ta->cancelFades(channel);
-              _ta->startTrack(channel);
+              _tu->logAction("stop audio ", channel+1);
+              _ta->stopTrack(channel);
             }
           }
         }
-        _tu->logAction2("start: continueTrack = ", _continueTrack[channel]);
 
-
-        // Start vibration. This is much simpler.
+        // Stop vibration
         if (_useVibrationOutput[channel]) {
-          _tu->logAction("start vibrator ", channel+1);
-          _v->start(channel);
+          _tu->logAction("stop vibrator ", channel+1);
+          _v->stop(channel);
         }
 
-        _isPlaying[channel] = true;
-
-        // If single-track mode, stop at the first NEW_TOUCH
-        if (!_multiTrack)
-          break;
+        _isPlaying[channel] = false;
       }
     }
-  }
+
+    // Now that we've processed releases, are there any still playing?
+    // Need to know this for single-track mode.
+    bool nothingIsPlaying = true;
+    for (int channel = 0; channel < NUM_CHANNELS; channel++) {
+      if (_isPlaying[channel])
+        nothingIsPlaying = false;
+    }
+
+    // Process new touches
+    if (_multiTrack | nothingIsPlaying) {
+
+      for (int channel = 0; channel < NUM_CHANNELS; channel++) {
+
+        // For multi-track, a "Touch" is simply a new touch.
+        // For single-track, it can also include an existing touch if the
+        // track isn't playing (i.e. the new touch came while another track
+        // was playing).
+        if (sensorChanged[channel] == NEW_TOUCH
+            || (!_multiTrack && ((sensorStatus[channel] == IS_TOUCHED) && !_isPlaying[channel]))) {
+
+          // Start or resume audio
+          if (_useAudioOutput[channel]) {
+            if (_continueTrack[channel]) {
+              if (_ta->isPaused(channel)) {
+                _tu->logAction("resume audio track ", channel+1);
+                _ta->resumeTrack(channel);
+              } else {
+                _tu->logAction("restart audio track ", channel+1);
+                _ta->startTrack(channel);
+              }
+            } else {
+              if (!_isPlaying[channel]) {
+                _tu->logAction("start audio track ", channel+1);
+                _ta->cancelFades(channel);
+                _ta->startTrack(channel);
+              }
+            }
+          }
+          _tu->logAction2("start: continueTrack = ", _continueTrack[channel]);
+
+
+          // Start vibration. This is much simpler.
+          if (_useVibrationOutput[channel]) {
+            _tu->logAction("start vibrator ", channel+1);
+            _v->start(channel);
+          }
+
+          _isPlaying[channel] = true;
+
+          // If single-track mode, stop at the first NEW_TOUCH
+          if (!_multiTrack)
+            break;
+        }
+      }
+    }
+
+  }     // end of "if (numChanges > 0)"
 
   for (int channel = 0; channel < NUM_CHANNELS; channel++) {
 
@@ -477,6 +481,7 @@ void Tactile::_touchLoop() {
       }
     }
   }
+
 }
     
 void Tactile::loop() {

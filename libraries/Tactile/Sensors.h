@@ -56,7 +56,7 @@ class Sensors
   TeensyUtils *_tu;
   
   // General controls
-  bool _touchToggleMode;        // touch-on-touch-off rather than touch-on-release-off
+  bool _touchToggleMode[NUM_CHANNELS];        // touch-on-touch-off rather than touch-on-release-off
 
   // Touch sensors
   int   _lastSensorTouched;

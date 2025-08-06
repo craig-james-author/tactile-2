@@ -45,11 +45,11 @@ Sensors* Sensors::setup(TeensyUtils *tc) {
     t->_lastSensorPseudoStatus[channel] = IS_RELEASED;
     t->_filteredSensorValue[channel] = 0.0;
     t->_ignoreSensor[channel] = false;
+    t->_touchToggleMode[channel] = false;
     t->setProximityMultiplier(channel, 1.0);
     t->setTouchReleaseThresholds(channel, 95.0, 65.0);
   }
   t->_lastSensorTouched = -1;
-  t->_touchToggleMode = false;
 
   t->setAveragingStrength(200);
 
@@ -114,8 +114,13 @@ void Sensors::ignoreSensor(int channel, bool ignore) {
 }
 
 void Sensors::setTouchToggleMode(int channel, bool on) {
-  _touchToggleMode = on;
-  _tu->logAction2("Sensors: touchToggleMode: ", on ? 1 : 0);
+  _touchToggleMode[channel] = on;
+  if (getLogLevel() > 1) {
+    Serial.print("Sensors: touchToggleMode[");
+    Serial.print(channel);
+    Serial.print("]: ");
+    Serial.println(on);
+  }
 }
 
 /* Returns number of changes since the last call.
@@ -159,7 +164,7 @@ int Sensors::getTouchStatus(float proximityValues[], int sensorStatus[], int sen
     // So we convert releases to no-change, and we convert touches alternately
     // to touch/release.
 
-    if (_touchToggleMode) {
+    if (_touchToggleMode[i]) {
       if (sensorChanges[i] == NEW_RELEASE) {
         sensorStatus[i] = _lastSensorPseudoStatus[i];
         sensorChanges[i] = TOUCH_NO_CHANGE;             // ignore all releases

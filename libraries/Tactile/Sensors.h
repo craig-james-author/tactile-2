@@ -30,6 +30,13 @@
 #define NEW_TOUCH 1
 #define NEW_RELEASE 2
 
+// Specify an unused analog input. It can't be one of
+// the ones used below for _channelToPinNumber, and shouldn't
+// be connected to anything. This is used by the Tactile
+// class to seed random numbers.
+
+#define UNUSED_ANALOG_INPUT A13
+
 
 class Sensors
 {

@@ -45,7 +45,7 @@ class AudioPlayer
   void setFadeOutTime(int channel, int milliseconds);
   void cancelFades(int channel);
 
-  void useRandomTracks(int channel, bool r);
+  void useRandomTracks(int channel, bool r, boolean shuffle);
   void setLoopMode(int channel, bool on);
 
   void startTrack(int channel);
@@ -72,6 +72,7 @@ class AudioPlayer
   int _fadeOutTime[NUM_CHANNELS];
 
   bool _randomTrackMode[NUM_CHANNELS];
+  bool _shuffleTrackMode[NUM_CHANNELS];
   bool _loopMode[NUM_CHANNELS];
 
   // Audio player status (per track)
@@ -82,6 +83,10 @@ class AudioPlayer
   int      _lastRandomTrackPlayed[NUM_CHANNELS];
   bool     _isPaused[NUM_CHANNELS];
   
+  // Pre-computed play order for "shuffled" mode of random tracks.
+  int _shuffledTracks[NUM_CHANNELS][NUM_FILES_IN_SUBDIR];
+  int _shufflePosition[NUM_CHANNELS];
+
   // Internal methods
   AudioPlaySdWavPR *_getPlayerByTrack(int channel);
   uint8_t _volumePctToByte(int percent);

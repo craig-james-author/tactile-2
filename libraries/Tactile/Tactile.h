@@ -70,14 +70,18 @@ class Tactile
   void setFadeOutTime(int milliseconds);
   void setLoopMode(int channel, bool on);             // true == track restarts (loops) when end reached
   void setLoopMode(bool on);
-  void useRandomTracks(int channel, bool on);         // true == random selection from sensor's directory
-  void useRandomTracks(bool on);
+  void useRandomTracks(int channel, bool on, bool shuffle); // true == random selection from sensor's directory
+  void useRandomTracks(bool on, bool shuffle);              // shuffle is like cards instead of true random
   const char *getTrackName(int channel);
 
   // renamed -- use #define so that Tactile v1 sketches will work
 #define setProximityAsVolumeMode useProximityAsVolume
 #define setPlayRandomTrackMode useRandomTracks
   
+  // redefined -- added shuffle feature
+  void useRandomTracks(int channel, bool on);
+  void useRandomTracks(bool on);
+
   /*---------- These are forwarded to the Vibrator module ----------*/
   void addCustomVibrationEnvelope(VibrationEnvelope &ve);
   void setVibrationEnvelope(int channel, const char *name);

@@ -89,17 +89,23 @@ void Tactile::setVolume(int percent) {
     setVolume(ch, percent);
 }
 
-void Tactile::useRandomTracks(int channel, boolean on) {
+void Tactile::useRandomTracks(int channel, bool on, bool shuffle) {
   channel = channelExtern2Intern(channel);
-  _ta->useRandomTracks(channel, on);
+  _ta->useRandomTracks(channel, on, shuffle);
+}
+void Tactile::useRandomTracks(int channel, bool on) {     // obsolete, backwards compatible
+  useRandomTracks(channel, on, false);
 }
 
-void Tactile::useRandomTracks(boolean on) {
-  for (int ch = 1; ch <= NUM_CHANNELS; ch++)
-    useRandomTracks(ch, on);
+void Tactile::useRandomTracks(bool on, bool shuffle) {
+  for (int ch = 0; ch < NUM_CHANNELS; ch++)
+    useRandomTracks(ch, on, false);
+}
+void Tactile::useRandomTracks(bool on) {                   // obsolete, backwards compatible
+  useRandomTracks(on, false);
 }
 
-void Tactile::useProximityAsVolume(int channel, boolean on) {
+void Tactile::useProximityAsVolume(int channel, bool on) {
   channel = channelExtern2Intern(channel);
   _useProximityAsVolume[channel] = on;
   if (on) {
@@ -108,7 +114,7 @@ void Tactile::useProximityAsVolume(int channel, boolean on) {
   }
 }
 
-void Tactile::useProximityAsVolume(boolean on) {
+void Tactile::useProximityAsVolume(bool on) {
   for (int ch = 1; ch <= NUM_CHANNELS; ch++)
     useProximityAsVolume(ch, on);
 }
@@ -154,7 +160,7 @@ void Tactile::ignoreSensor(int channel, bool ignore) {
   _ts->ignoreSensor(channel, ignore);
 }
 
-void Tactile::setMultiTrackMode(boolean on) {
+void Tactile::setMultiTrackMode(bool on) {
   _multiTrack = on;
 }
 
@@ -178,33 +184,33 @@ void Tactile::setTouchReleaseThresholds(int touch, int release) {
     setTouchReleaseThresholds(ch, touch, release);
 }
 
-void Tactile::setTouchToStop(int channel, boolean on) {
+void Tactile::setTouchToStop(int channel, bool on) {
   channel = channelExtern2Intern(channel);
   _touchToStop[channel] = on;
   _ts->setTouchToggleMode(channel, on);
 }
 
-void Tactile::setTouchToStop(boolean on) {
+void Tactile::setTouchToStop(bool on) {
   for (int ch = 1; ch <= NUM_CHANNELS; ch++)
     setTouchToStop(ch, on);
 }
 
-void Tactile::setContinueTrackMode(int channel, boolean on) {
+void Tactile::setContinueTrackMode(int channel, bool on) {
   channel = channelExtern2Intern(channel);
   _continueTrack[channel] = on;
 }
 
-void Tactile::setContinueTrackMode(boolean on) {
+void Tactile::setContinueTrackMode(bool on) {
   for (int ch = 1; ch <= NUM_CHANNELS; ch++)
     setContinueTrackMode(ch, on);
 }
 
-void Tactile::setLoopMode(int channel, boolean on) {
+void Tactile::setLoopMode(int channel, bool on) {
   channel = channelExtern2Intern(channel);
   _ta->setLoopMode(channel, on);
 }
 
-void Tactile::setLoopMode(boolean on) {
+void Tactile::setLoopMode(bool on) {
   for (int ch = 1; ch <= NUM_CHANNELS; ch++)
     setLoopMode(ch, on);
 }
@@ -311,7 +317,7 @@ Tactile* Tactile::setup() {
   for (int c = 1; c <= NUM_CHANNELS; c++) {
     t->setTouchReleaseThresholds(c, 95, 65);
     t->setContinueTrackMode(c, false);
-    t->useRandomTracks(c, false);
+    t->useRandomTracks(c, false, false);
     t->useProximityAsVolume(c, false);
   }
   t->setInactivityTimeout(0);
@@ -330,6 +336,10 @@ Tactile* Tactile::setup() {
     t->_isPlaying[c] = false;
   }
   
+  // Generate a "random" seed for the random() function. See
+  // Sensors.h for the definition of the unused analog pin.
+  randomSeed(analogRead(UNUSED_ANALOG_INPUT));
+
   return t;
 }
 

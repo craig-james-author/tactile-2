@@ -144,7 +144,12 @@ void Vibrate::doTimerTasks() {
         // Go to next point in intensity envelope
         _indexInEnvelope[channel] += 1;
         if (_indexInEnvelope[channel] >= _vibrationEnvelope[channel].numberOfPoints) {
-          _indexInEnvelope[channel] = 0;
+          if (_vibrationEnvelope[channel].repeats) {
+            _indexInEnvelope[channel] = 0;
+          } else {
+            stop(channel);
+            return;
+          }
         }
         int setIntensity = _vibrationEnvelope[channel].intensities[_indexInEnvelope[channel]];
         _actualIntensity[channel] = _calculateActualIntensity(channel, setIntensity);

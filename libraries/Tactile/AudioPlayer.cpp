@@ -62,6 +62,7 @@ AudioPlayer* AudioPlayer::setup(TeensyUtils *tc) {
     t->_fadeInTime[channel]            = 0;
     t->_fadeOutTime[channel]           = 0;
     t->_randomTrackMode[channel]       = false;
+    t->_shuffleTrackMode[channel]      = false;
     t->_loopMode[channel]              = false;
     t->_targetVolume[channel]          = 100;
     t->_actualVolume[channel]          = 0;
@@ -157,9 +158,56 @@ int AudioPlayer::cancelAll() {
  * Play, pause, resume, and stop tracks
  ----------------------------------------------------------------------*/
 
-void AudioPlayer::useRandomTracks(int channel, bool r) {
-  _randomTrackMode[channel] = r;
-}
+void AudioPlayer::useRandomTracks(int channel, bool on, bool shuffle) {
+
+  _randomTrackMode[channel] = on;
+  _shuffleTrackMode[channel] = shuffle;
+  _shufflePosition[channel] = 0;
+
+  if (!on) return;
+
+  if (shuffle) {
+    // Assign each file number a random position in the shuffle-array. If
+    // that position is already taken, increment until we find the next
+    // available slot.
+    for (int i = 0; i < NUM_FILES_IN_SUBDIR; i++) {
+      _shuffledTracks[channel][i] = -1;
+    }
+    int numFiles = _fm->getNumFiles(channel);
+    if (numFiles <= 0)
+      return;
+    for (int i = 0; i < numFiles; i++) {
+      int r = random(numFiles);
+      int count = 0;
+      while (_shuffledTracks[channel][r] != -1) {       // if slot used, find another
+        int r2 = random(numFiles);
+        r = r + r2;
+        if (r >= numFiles)
+          r = r - numFiles;
+        if (++count > numFiles * 10) {  // didn't find one by random tries, should be rare
+          r = 0;
+          while (_shuffledTracks[channel][r] != -1) {
+            if (r >= (numFiles-1))
+              return;
+            r++;
+          }
+        }
+      }
+      _shuffledTracks[channel][r] = i;
+    }
+    if (getLogLevel() > 1) {
+      Serial.print("Shuffle tracks ");
+      Serial.print(channel);
+      Serial.print(": ");
+      for (int i = 0; i < numFiles; i++) {
+        Serial.print(" "); 
+        Serial.print(_shuffledTracks[channel][i]);
+      }
+      Serial.print("\n");
+    }
+  }
+}          
+    
 
 void AudioPlayer::setLoopMode(int channel, bool on) {
   _loopMode[channel] = on;
@@ -221,15 +269,29 @@ void AudioPlayer::_startRandomTrack(int channel) {
   if (numFiles < 1) return;
 
   int r;
-  int tries = 0;
-  while (tries < 30) {
-    r = random(numFiles);
-    if (r != _lastRandomTrackPlayed[channel])       // avoid last track played
-      break;
-    tries++;
+
+  // Shuffle mode: select next track from the shuffled array
+  if (_shuffleTrackMode[channel]) {
+    r = _shuffledTracks[channel][_shufflePosition[channel]];
+    _shufflePosition[channel] += 1;
+    if (_shufflePosition[channel] >= numFiles)
+      _shufflePosition[channel] = 0;
+    _tu->logAction2("AudioPlayer: Shuffled track selected: ", r);
   }
-  _lastRandomTrackPlayed[channel] = r;
-  _tu->logAction2("AudioPlayer: Random track selected: ", r);
+
+  // Pure random mode: select track randomly (but avoid last track played).
+  else {
+    int tries = 0;
+    while (tries < 30) {
+      r = random(numFiles);
+      if (r != _lastRandomTrackPlayed[channel])       // avoid last track played
+        break;
+      tries++;
+    }
+    _lastRandomTrackPlayed[channel] = r;
+    _tu->logAction2("AudioPlayer: Random track selected: ", r);
+  }
+
   const char *fileName = _fm->getFileName(channel, r);
   if (!fileName) {
     _tu->logAction2("Error, couldn't get random filename (this shouldn't happen) for track ", channel);

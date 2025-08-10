@@ -89,20 +89,21 @@ void Tactile::setVolume(int percent) {
     setVolume(ch, percent);
 }
 
-void Tactile::useRandomTracks(int channel, bool on, bool shuffle) {
+void Tactile::setPlayTrackAction(int channel, playTrackActionType playAction) {
   channel = channelExtern2Intern(channel);
-  _ta->useRandomTracks(channel, on, shuffle);
+  _ta->setPlayTrackAction(channel, playAction);
 }
-void Tactile::useRandomTracks(int channel, bool on) {     // obsolete, backwards compatible
-  useRandomTracks(channel, on, false);
+void Tactile::setPlayTrackAction(playTrackActionType playAction) {
+  for (int ch = 1; ch <= NUM_CHANNELS; ch++)
+    setPlayTrackAction(ch, playAction);
 }
 
-void Tactile::useRandomTracks(bool on, bool shuffle) {
-  for (int ch = 0; ch < NUM_CHANNELS; ch++)
-    useRandomTracks(ch, on, false);
+void Tactile::useRandomTracks(int channel, bool on) {           // obsolete, backwards compatible
+  setPlayTrackAction(channel, on ? playRandom : playSingle);
 }
-void Tactile::useRandomTracks(bool on) {                   // obsolete, backwards compatible
-  useRandomTracks(on, false);
+void Tactile::useRandomTracks(bool on) {                        // obsolete, backwards compatible
+  for (int ch = 1; ch <= NUM_CHANNELS; ch++)
+    setPlayTrackAction(ch, on ? playRandom : playSingle);
 }
 
 void Tactile::useProximityAsVolume(int channel, bool on) {
@@ -317,7 +318,7 @@ Tactile* Tactile::setup() {
   for (int c = 1; c <= NUM_CHANNELS; c++) {
     t->setTouchReleaseThresholds(c, 95, 65);
     t->setContinueTrackMode(c, false);
-    t->useRandomTracks(c, false, false);
+    t->setPlayTrackAction(c, playSingle);
     t->useProximityAsVolume(c, false);
   }
   t->setInactivityTimeout(0);

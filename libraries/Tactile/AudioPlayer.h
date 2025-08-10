@@ -45,7 +45,7 @@ class AudioPlayer
   void setFadeOutTime(int channel, int milliseconds);
   void cancelFades(int channel);
 
-  void useRandomTracks(int channel, bool r, boolean shuffle);
+  void setPlayTrackAction(int channel, playTrackActionType playAction);
   void setLoopMode(int channel, bool on);
 
   void startTrack(int channel);
@@ -71,9 +71,8 @@ class AudioPlayer
   int _fadeInTime[NUM_CHANNELS];
   int _fadeOutTime[NUM_CHANNELS];
 
-  bool _randomTrackMode[NUM_CHANNELS];
-  bool _shuffleTrackMode[NUM_CHANNELS];
   bool _loopMode[NUM_CHANNELS];
+  playTrackActionType _playAction[NUM_CHANNELS];
 
   // Audio player status (per track)
   uint32_t _lastStartTime[NUM_CHANNELS];
@@ -95,6 +94,7 @@ class AudioPlayer
   void    _doFadeInOut(int channel);
   void    _startTrack(int channel);
   void    _startRandomTrack(int channel);
+  void    _shuffleTracks(int channel);
 };
 
 #endif

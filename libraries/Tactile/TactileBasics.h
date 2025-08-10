@@ -41,4 +41,17 @@ enum OutputDest { noOutput, audioOutput, vibrationOutput };
 
 enum VibratorType { motorVibrator, linearVibrator };
 
+// How should audio tracks be selected?
+// Each sensor can have either a single track or a directory
+// of tracks associated with it.
+//  playSingle      -- play the single track
+//  playRandom      -- play a random track from the associated directory
+//  playShuffled    -- shuffle the tracks from the associated directory and
+//                     play them in shuffled order; when the end of the list
+//                     is reached, go back and play it again
+//  playReshuffled  -- like playShuffled, but each time the end of thelist is
+//                     reached, re-shuffle and start again
+
+enum playTrackActionType {playSingle, playRandom, playShuffled, playReshuffled};
+
 #endif

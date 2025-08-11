@@ -1,0 +1,10 @@
+2025-08-10
+  - Added these release notes
+  - This is a major release that adds vibration controls, per-track
+    configuration of all options, and the new Tactile Configurator.
+  - Bug fix: "random" track playing wasn't really very random.
+  - Bug fix: if a track reached the end while the sensor was still
+    touched, it wouldn't start again on subsequent touches.
+    
+
+  

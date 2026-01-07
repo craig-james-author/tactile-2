@@ -115,6 +115,7 @@ class Tactile
   bool     _proximityControlsSpeed[NUM_CHANNELS];
   int      _speedMultiplierPercent[NUM_CHANNELS];
   bool     _multiTrack;
+  playTrackActionType _playAction[NUM_CHANNELS];
 
   // Bookkeeping while playing
   bool     _isPlaying[NUM_CHANNELS];

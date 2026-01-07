@@ -20,13 +20,12 @@ void setup() {
   v  = Vibrate::setup(tu);
 
   for (int ch = 0; ch < NUM_CHANNELS; ch++)
-    v->setVibratorType(ch, linearVibrator);
-  v->setVibratorType(3, motorVibrator);
+    v->setVibratorType(ch, motorVibrator);
 
   v->setVibrationEnvelope(0, "square");
-  v->setVibrationEnvelope(1, "sawtooth");
-  v->setVibrationEnvelope(2, "continuous");
-  v->setVibrationEnvelope(3, "pulse");
+  v->setVibrationEnvelope(1, "square");
+  v->setVibrationEnvelope(2, "square");
+  v->setVibrationEnvelope(3, "square");
 
   for (int ch = 0; ch < NUM_CHANNELS; ch++) {
     v->setIntensity(ch, 100);

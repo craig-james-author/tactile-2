@@ -90,7 +90,10 @@ void Tactile::setVolume(int percent) {
 }
 
 void Tactile::setPlayTrackAction(int channel, playTrackActionType playAction) {
+  if (playAction != playSingle)
+    setContinueTrackMode(channel, false); // continue-track is not compatible wiith random or shuffle
   channel = channelExtern2Intern(channel);
+  _playAction[channel] = playAction;
   _ta->setPlayTrackAction(channel, playAction);
 }
 void Tactile::setPlayTrackAction(playTrackActionType playAction) {
@@ -198,6 +201,8 @@ void Tactile::setTouchToStop(bool on) {
 
 void Tactile::setContinueTrackMode(int channel, bool on) {
   channel = channelExtern2Intern(channel);
+  if (_playAction[channel] != playSingle)
+    on = false;       // continue-track not compatible with random or shuffle tracks
   _continueTrack[channel] = on;
 }
 
